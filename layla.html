@@ -441,11 +441,188 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.3; }
     }
+
+    /* ── HAMBURGER ── */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      padding: 4px;
+      z-index: 100;
+    }
+    .hamburger span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: var(--black);
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    /* Mobile drawer */
+    .mobile-drawer {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #fff;
+      z-index: 50;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .mobile-drawer.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .mobile-drawer a {
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--black);
+      text-decoration: none;
+      letter-spacing: 4px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .mobile-drawer a:hover { color: var(--accent); }
+    .mobile-drawer .drawer-btn {
+      margin-top: 10px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 14px 40px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    /* ── MOBILE BREAKPOINT ── */
+    @media (max-width: 768px) {
+
+      /* Nav */
+      nav { padding: 18px 24px; }
+      .nav-links { display: none; }
+      .nav-right { display: none; }
+      .hamburger { display: flex; }
+      .mobile-drawer { display: flex; }
+
+      /* Hero */
+      .hero { padding: 32px 20px; justify-content: center; }
+      .hero-title { font-size: 52px; letter-spacing: 16px; margin-bottom: 16px; }
+      .hero-sub { font-size: 14px; margin-bottom: 36px; }
+
+      /* Prompt */
+      .prompt-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 16px;
+        gap: 10px;
+        border-radius: 16px;
+      }
+      .prompt-wrapper input { font-size: 14px; text-align: center; }
+      .prompt-icon { display: none; }
+      .prompt-btn { padding: 13px; border-radius: 10px; font-size: 14px; }
+
+      /* Chips */
+      .chips { gap: 8px; }
+      .chip { font-size: 11px; padding: 6px 14px; }
+
+      /* Docs — stack sidebar on top */
+      #page-docs { flex-direction: column; }
+
+      .docs-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 16px 0 0;
+        display: flex;
+        flex-direction: column;
+        overflow-x: auto;
+        overflow-y: hidden;
+        max-height: none;
+      }
+
+      .sidebar-section { margin-bottom: 0; }
+      .sidebar-section-label { display: none; }
+
+      .docs-sidebar {
+        flex-direction: row;
+        padding: 0;
+        gap: 0;
+      }
+
+      .sidebar-section {
+        display: flex;
+        flex-direction: row;
+      }
+
+      .sidebar-link {
+        padding: 14px 16px;
+        border-left: none;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+        font-size: 12px;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        text-align: center;
+      }
+      .sidebar-link.active {
+        border-left: none;
+        border-bottom-color: var(--accent);
+        background: none;
+      }
+      .sidebar-link svg { width: 16px; height: 16px; }
+
+      .docs-content { padding: 28px 20px; }
+      .doc-section h1 { font-size: 22px; }
+      .doc-section .lead { font-size: 14px; }
+      .doc-section h2 { font-size: 16px; }
+      .code-block { font-size: 12px; padding: 16px; }
+
+      /* Examples */
+      #page-examples { padding: 28px 20px; }
+      .examples-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+      .ex-preview { height: 110px; font-size: 28px; }
+      .page-title { font-size: 24px; letter-spacing: 5px; }
+
+      /* Footer */
+      footer {
+        padding: 14px 24px;
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+      }
+      .footer-links { gap: 20px; }
+    }
+
+    @media (max-width: 400px) {
+      .hero-title { font-size: 40px; letter-spacing: 12px; }
+      .examples-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
 
   <canvas id="three-canvas"></canvas>
+
+  <!-- MOBILE DRAWER -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <a onclick="showPage('home'); toggleDrawer()">Home</a>
+    <a onclick="showPage('docs'); toggleDrawer()">Docs</a>
+    <a onclick="showPage('examples'); toggleDrawer()">Examples</a>
+    <button class="drawer-btn" onclick="toggleDrawer()">Get started</button>
+  </div>
 
   <!-- NAV -->
   <nav>
@@ -458,6 +635,9 @@
     <div class="nav-right">
       <button class="btn-ghost">Sign in</button>
       <button class="btn-solid">Get started</button>
+    </div>
+    <div class="hamburger" id="hamburger" onclick="toggleDrawer()">
+      <span></span><span></span><span></span>
     </div>
   </nav>
 
@@ -861,6 +1041,14 @@
       mesh.rotation.x += (-y - mesh.rotation.x) * 0.02;
       mesh.rotation.y += (x - mesh.rotation.y) * 0.02;
     });
+
+    // ── MOBILE DRAWER ──
+    function toggleDrawer() {
+      const drawer = document.getElementById('mobileDrawer');
+      const burger = document.getElementById('hamburger');
+      drawer.classList.toggle('open');
+      burger.classList.toggle('open');
+    }
 
     // ── NAVIGATION ──
     function showPage(name) {
