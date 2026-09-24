@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Layla</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --black: #0a0a0a;
+      --white: #fafafa;
+      --accent: #6c63ff;
+      --accent-light: #ede9ff;
+      --gray: #555;
+      --border: #e0e0e0;
+    }
+
+    body {
+      background: var(--white);
+      height: 100vh;
+      font-family: 'Inter', sans-serif;
+      color: var(--black);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* NAV */
+    nav {
+      width: 100%;
+      padding: 22px 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: rgba(250,250,250,0.9);
+      backdrop-filter: blur(12px);
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-family: 'Courier New', monospace;
+      font-size: 20px;
+      font-weight: 400;
+      letter-spacing: 10px;
+      color: var(--black);
+      cursor: pointer;
+    }
+    .logo span { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      gap: 36px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--gray);
+      text-decoration: none;
+      transition: color 0.2s;
+      cursor: pointer;
+    }
+    .nav-links a:hover { color: var(--black); }
+    .nav-links a.active { color: var(--accent); font-weight: 500; }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn-ghost {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--black);
+      background: none;
+      border: 1px solid var(--border);
+      padding: 9px 20px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .btn-ghost:hover { border-color: var(--black); }
+
+    .btn-solid {
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--black);
+      color: #fff;
+      border: none;
+      padding: 9px 20px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .btn-solid:hover { background: #333; }
+
+    /* CANVAS */
+    #three-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* PAGES */
+    .page { display: none; flex: 1; overflow: hidden; position: relative; z-index: 2; }
+    .page.active { display: flex; flex-direction: column; }
+
+    /* HOME */
+    #page-home { flex-direction: column; }
+
+    .hero {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 20px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .hero-title {
+      font-family: 'Courier New', monospace;
+      font-size: 90px;
+      font-weight: 400;
+      letter-spacing: 28px;
+      color: var(--black);
+      margin-bottom: 20px;
+      line-height: 1;
+    }
+    .hero-title span { color: var(--accent); }
+
+    .hero-sub {
+      font-size: 15px;
+      font-weight: 300;
+      color: var(--gray);
+      margin-bottom: 50px;
+      line-height: 1.8;
+      max-width: 420px;
+    }
+
+    .prompt-wrapper {
+      width: 100%;
+      max-width: 640px;
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      padding: 14px 14px 14px 22px;
+      gap: 12px;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.06);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .prompt-wrapper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 4px 30px rgba(108,99,255,0.12);
+    }
+
+    .prompt-icon { font-size: 16px; color: var(--accent); }
+
+    .prompt-wrapper input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: var(--black);
+      background: transparent;
+    }
+    .prompt-wrapper input::placeholder { color: #bbb; }
+
+    .prompt-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 22px;
+      border-radius: 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .prompt-btn:hover { background: #5a52e0; transform: scale(1.02); }
+
+    .chips {
+      margin-top: 22px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .chip {
+      font-size: 12px;
+      color: var(--gray);
+      border: 1px solid var(--border);
+      padding: 7px 16px;
+      border-radius: 100px;
+      cursor: pointer;
+      background: #fff;
+      transition: all 0.2s;
+    }
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    /* ── DOCS PAGE ── */
+    #page-docs {
+      flex-direction: row;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .docs-sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      background: #fff;
+      overflow-y: auto;
+      padding: 32px 0;
+    }
+
+    .sidebar-section {
+      margin-bottom: 28px;
+    }
+
+    .sidebar-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: #bbb;
+      text-transform: uppercase;
+      padding: 0 24px;
+      margin-bottom: 8px;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 24px;
+      font-size: 13px;
+      color: var(--gray);
+      cursor: pointer;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .sidebar-link:hover { color: var(--black); background: #f5f5f5; }
+    .sidebar-link.active {
+      color: var(--accent);
+      background: var(--accent-light);
+      border-left-color: var(--accent);
+      font-weight: 500;
+    }
+    .sidebar-link .icon { font-size: 15px; }
+
+    /* Docs content */
+    .docs-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 50px 64px;
+    }
+
+    .doc-section {
+      display: none;
+      max-width: 720px;
+    }
+    .doc-section.active { display: block; }
+
+    .doc-section h1 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--black);
+    }
+
+    .doc-section .lead {
+      font-size: 15px;
+      color: var(--gray);
+      line-height: 1.8;
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 28px;
+    }
+
+    .doc-section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 36px 0 12px;
+      color: var(--black);
+    }
+
+    .doc-section p {
+      font-size: 14px;
+      color: var(--gray);
+      line-height: 1.9;
+      margin-bottom: 16px;
+    }
+
+    .doc-section ul {
+      padding-left: 20px;
+      margin-bottom: 20px;
+    }
+    .doc-section ul li {
+      font-size: 14px;
+      color: var(--gray);
+      line-height: 1.9;
+      margin-bottom: 6px;
+    }
+
+    .code-block {
+      background: #0a0a0a;
+      color: #a9ff8d;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      padding: 20px 24px;
+      border-radius: 10px;
+      margin: 16px 0 24px;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+
+    .tip-box {
+      background: var(--accent-light);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 10px 10px 0;
+      padding: 16px 20px;
+      margin: 20px 0;
+      font-size: 13px;
+      color: var(--accent);
+      line-height: 1.7;
+    }
+
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      align-items: flex-start;
+    }
+    .step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .step-body p  { font-size: 13px; color: var(--gray); line-height: 1.7; margin: 0; }
+
+    /* EXAMPLES PAGE */
+    #page-examples { flex-direction: column; overflow-y: auto; padding: 50px 60px; }
+
+    .page-title {
+      font-family: 'Courier New', monospace;
+      font-size: 32px;
+      font-weight: 400;
+      letter-spacing: 8px;
+      color: var(--black);
+      margin-bottom: 8px;
+    }
+    .page-title span { color: var(--accent); }
+    .page-sub { font-size: 14px; color: var(--gray); margin-bottom: 40px; }
+
+    .examples-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .ex-card {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .ex-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+    }
+    .ex-preview {
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+    }
+    .ex-card-body { padding: 16px; }
+    .ex-card-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .ex-card-body p  { font-size: 12px; color: var(--gray); }
+
+    /* FOOTER */
+    footer {
+      padding: 16px 60px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+      background: rgba(250,250,250,0.9);
+      backdrop-filter: blur(12px);
+      flex-shrink: 0;
+    }
+    footer span { font-size: 12px; color: #aaa; }
+    .footer-links { display: flex; gap: 28px; }
+    .footer-links a {
+      font-size: 12px; color: #aaa;
+      text-decoration: none; transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--black); }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── HAMBURGER ── */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      padding: 4px;
+      z-index: 100;
+    }
+    .hamburger span {
+      display: block;
+      width: 22px;
+      height: 2px;
+      background: var(--black);
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+    .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    /* Mobile drawer */
+    .mobile-drawer {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #fff;
+      z-index: 50;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .mobile-drawer.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .mobile-drawer a {
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--black);
+      text-decoration: none;
+      letter-spacing: 4px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .mobile-drawer a:hover { color: var(--accent); }
+    .mobile-drawer .drawer-btn {
+      margin-top: 10px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 14px 40px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    /* ── MOBILE BREAKPOINT ── */
+    @media (max-width: 768px) {
+
+      /* Nav */
+      nav { padding: 18px 24px; }
+      .nav-links { display: none; }
+      .nav-right { display: none; }
+      .hamburger { display: flex; }
+      .mobile-drawer { display: flex; }
+
+      /* Hero */
+      .hero { padding: 32px 20px; justify-content: center; }
+      .hero-title { font-size: 52px; letter-spacing: 16px; margin-bottom: 16px; }
+      .hero-sub { font-size: 14px; margin-bottom: 36px; }
+
+      /* Prompt */
+      .prompt-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 16px;
+        gap: 10px;
+        border-radius: 16px;
+      }
+      .prompt-wrapper input { font-size: 14px; text-align: center; }
+      .prompt-icon { display: none; }
+      .prompt-btn { padding: 13px; border-radius: 10px; font-size: 14px; }
+
+      /* Chips */
+      .chips { gap: 8px; }
+      .chip { font-size: 11px; padding: 6px 14px; }
+
+      /* Docs — stack sidebar on top */
+      #page-docs { flex-direction: column; }
+
+      .docs-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 16px 0 0;
+        display: flex;
+        flex-direction: column;
+        overflow-x: auto;
+        overflow-y: hidden;
+        max-height: none;
+      }
+
+      .sidebar-section { margin-bottom: 0; }
+      .sidebar-section-label { display: none; }
+
+      .docs-sidebar {
+        flex-direction: row;
+        padding: 0;
+        gap: 0;
+      }
+
+      .sidebar-section {
+        display: flex;
+        flex-direction: row;
+      }
+
+      .sidebar-link {
+        padding: 14px 16px;
+        border-left: none;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+        font-size: 12px;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+        text-align: center;
+      }
+      .sidebar-link.active {
+        border-left: none;
+        border-bottom-color: var(--accent);
+        background: none;
+      }
+      .sidebar-link svg { width: 16px; height: 16px; }
+
+      .docs-content { padding: 28px 20px; }
+      .doc-section h1 { font-size: 22px; }
+      .doc-section .lead { font-size: 14px; }
+      .doc-section h2 { font-size: 16px; }
+      .code-block { font-size: 12px; padding: 16px; }
+
+      /* Examples */
+      #page-examples { padding: 28px 20px; }
+      .examples-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+      .ex-preview { height: 110px; font-size: 28px; }
+      .page-title { font-size: 24px; letter-spacing: 5px; }
+
+      /* Footer */
+      footer {
+        padding: 14px 24px;
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+      }
+      .footer-links { gap: 20px; }
+    }
+
+    @media (max-width: 400px) {
+      .hero-title { font-size: 40px; letter-spacing: 12px; }
+      .examples-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="three-canvas"></canvas>
+
+  <!-- MOBILE DRAWER -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <a onclick="showPage('home'); toggleDrawer()">Home</a>
+    <a onclick="showPage('docs'); toggleDrawer()">Docs</a>
+    <a onclick="showPage('examples'); toggleDrawer()">Examples</a>
+    <button class="drawer-btn" onclick="toggleDrawer()">Get started</button>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo" onclick="showPage('home')">LAY<span>L</span>A</div>
+    <ul class="nav-links">
+      <li><a onclick="showPage('home')" id="nav-home" class="active">Home</a></li>
+      <li><a onclick="showPage('docs')" id="nav-docs">Docs</a></li>
+      <li><a onclick="showPage('examples')" id="nav-examples">Examples</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="btn-ghost">Sign in</button>
+      <button class="btn-solid">Get started</button>
+    </div>
+    <div class="hamburger" id="hamburger" onclick="toggleDrawer()">
+      <span></span><span></span><span></span>
+    </div>
+  </nav>
+
+  <!-- HOME -->
+  <div class="page active" id="page-home">
+    <div class="hero">
+      <h1 class="hero-title">LAY<span>L</span>A</h1>
+      <p class="hero-sub">
+        Describe your 3D website in plain words.<br>
+        We build it. You ship it.
+      </p>
+      <div class="prompt-wrapper">
+        <span class="prompt-icon">✦</span>
+        <input type="text" id="promptInput" placeholder="make me a 3d portfolio with floating cubes..." />
+        <button class="prompt-btn" onclick="handlePrompt()">Build &rarr;</button>
+      </div>
+      <div class="chips">
+        <div class="chip" onclick="fillPrompt(this)">3d landing page</div>
+        <div class="chip" onclick="fillPrompt(this)">floating galaxy portfolio</div>
+        <div class="chip" onclick="fillPrompt(this)">3d product showcase</div>
+        <div class="chip" onclick="fillPrompt(this)">dark space website</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCS -->
+  <div class="page" id="page-docs">
+
+    <!-- Sidebar -->
+    <div class="docs-sidebar">
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Getting Started</div>
+        <div class="sidebar-link active" onclick="showDoc('intro')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Introduction
+        </div>
+        <div class="sidebar-link" onclick="showDoc('quickstart')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Quick Start
+        </div>
+        <div class="sidebar-link" onclick="showDoc('prompts')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Writing Prompts
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Building</div>
+        <div class="sidebar-link" onclick="showDoc('customize')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19.5" cy="10.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><circle cx="13.5" cy="19.5" r="2.5"/></svg>
+          Customizing 3D
+        </div>
+        <div class="sidebar-link" onclick="showDoc('templates')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Templates
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Shipping</div>
+        <div class="sidebar-link" onclick="showDoc('download')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </div>
+        <div class="sidebar-link" onclick="showDoc('github')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          Publish to GitHub
+        </div>
+      </div>
+
+
+    </div>
+
+    <!-- Content -->
+    <div class="docs-content">
+
+      <!-- Introduction -->
+      <div class="doc-section active" id="doc-intro">
+        <h1>Welcome to Layla</h1>
+        <p class="lead">Layla is a 3D website builder powered by AI. You describe what you want in plain words, and Layla generates a fully working 3D website — ready to download or publish live.</p>
+
+        <h2>What is Layla?</h2>
+        <p>Layla uses AI to turn your ideas into real 3D websites built with HTML, CSS, and Three.js. No coding experience needed. If you can describe it, Layla can build it.</p>
+
+        <div class="tip-box">
+          ✦ &nbsp; Layla generates clean, downloadable code — not locked into any platform. You own everything.
+        </div>
+
+        <h2>How it works</h2>
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Write a prompt</h3>
+            <p>Describe your 3D website on the home page. Be as simple or detailed as you like.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Layla builds it</h3>
+            <p>Our AI reads your prompt and generates a complete 3D website with animations, layout, and style.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Preview & edit</h3>
+            <p>See your site live inside Layla. Tweak colors, shapes, and text with follow-up prompts.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>Download or publish</h3>
+            <p>Export your site as a folder or push it live to GitHub Pages in one click.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Start -->
+      <div class="doc-section" id="doc-quickstart">
+        <h1>Quick Start</h1>
+        <p class="lead">Get your first 3D website live in under 5 minutes.</p>
+
+        <h2>Step 1 — Write your first prompt</h2>
+        <p>Go to the home page and type what you want in the prompt box. Example:</p>
+        <div class="code-block">make me a dark portfolio with floating purple cubes and my name in 3D</div>
+
+        <h2>Step 2 — Hit Build</h2>
+        <p>Press the Build button or hit Enter. Layla will generate your site and show you a live preview.</p>
+
+        <h2>Step 3 — Download your site</h2>
+        <p>Click the Download button on the preview. You'll get a folder with three files:</p>
+        <ul>
+          <li><strong>index.html</strong> — your website</li>
+          <li><strong>style.css</strong> — all the styles</li>
+          <li><strong>scene.js</strong> — the 3D code</li>
+        </ul>
+
+        <div class="tip-box">
+          ✦ &nbsp; Open index.html in any browser and your 3D site works instantly — no server needed.
+        </div>
+      </div>
+
+      <!-- Writing Prompts -->
+      <div class="doc-section" id="doc-prompts">
+        <h1>Writing Prompts</h1>
+        <p class="lead">The better your prompt, the better your site. Here's how to write great ones.</p>
+
+        <h2>Be descriptive</h2>
+        <p>Instead of "make a portfolio," try:</p>
+        <div class="code-block">make a dark portfolio with floating geometric shapes, my name in big white 3D letters, and a purple glow effect</div>
+
+        <h2>Mention the vibe</h2>
+        <p>Words like <em>minimal, dark, cyberpunk, clean, space, neon, luxury</em> help Layla match the right style.</p>
+
+        <h2>Include what sections you need</h2>
+        <div class="code-block">3d landing page with a hero section, about me, projects grid, and contact form</div>
+
+        <h2>Good prompt examples</h2>
+        <ul>
+          <li>floating galaxy portfolio with stars and 3D text</li>
+          <li>dark neon product showcase with a spinning logo</li>
+          <li>minimal white site with one floating cube in the center</li>
+          <li>ocean wave homepage with blue animated water</li>
+        </ul>
+
+        <div class="tip-box">
+          ✦ &nbsp; You can always refine your site with follow-up prompts like "make the background darker" or "add more shapes."
+        </div>
+      </div>
+
+      <!-- Customizing -->
+      <div class="doc-section" id="doc-customize">
+        <h1>Customizing 3D</h1>
+        <p class="lead">After your site is generated, you can fine-tune every detail.</p>
+
+        <h2>Colors</h2>
+        <p>Tell Layla what colors to use in a follow-up prompt:</p>
+        <div class="code-block">change the background to black and make the shapes gold</div>
+
+        <h2>Shapes</h2>
+        <p>Swap out the 3D objects:</p>
+        <div class="code-block">replace the cubes with floating diamonds</div>
+
+        <h2>Animation speed</h2>
+        <div class="code-block">make the rotation slower and add a gentle floating effect</div>
+
+        <h2>Camera</h2>
+        <div class="code-block">zoom out the camera and tilt it slightly downward</div>
+      </div>
+
+      <!-- Templates -->
+      <div class="doc-section" id="doc-templates">
+        <h1>Templates</h1>
+        <p class="lead">Start fast with a pre-built template and customize from there.</p>
+
+        <h2>Available templates</h2>
+        <ul>
+          <li><strong>Galaxy Portfolio</strong> — dark, stars, floating 3D text</li>
+          <li><strong>Product Showcase</strong> — light, rotating model center stage</li>
+          <li><strong>Space Landing</strong> — asteroids, planets, dark atmosphere</li>
+          <li><strong>Minimal Cube</strong> — clean white, single floating cube</li>
+          <li><strong>Cyberpunk City</strong> — neon grid, glowing lines</li>
+          <li><strong>Ocean Waves</strong> — animated blue water surface</li>
+        </ul>
+
+        <div class="tip-box">
+          ✦ &nbsp; Go to the Examples tab to click any template and auto-load it as your starting prompt.
+        </div>
+      </div>
+
+      <!-- Download -->
+      <div class="doc-section" id="doc-download">
+        <h1>Downloading Your Site</h1>
+        <p class="lead">Your site is yours. Export it any time as a clean code folder.</p>
+
+        <h2>What you get</h2>
+        <p>When you download, you get a zip folder containing:</p>
+        <ul>
+          <li><strong>index.html</strong> — the full page structure</li>
+          <li><strong>style.css</strong> — all visual styles</li>
+          <li><strong>scene.js</strong> — the Three.js 3D scene</li>
+          <li><strong>assets/</strong> — any images or fonts used</li>
+        </ul>
+
+        <h2>Hosting options</h2>
+        <p>You can host your downloaded site anywhere:</p>
+        <ul>
+          <li>GitHub Pages (free)</li>
+          <li>Netlify (drag and drop)</li>
+          <li>Vercel</li>
+          <li>Your own server</li>
+        </ul>
+      </div>
+
+      <!-- GitHub -->
+      <div class="doc-section" id="doc-github">
+        <h1>Publish to GitHub</h1>
+        <p class="lead">Push your 3D site live in one click using GitHub Pages.</p>
+
+        <h2>Step 1 — Connect GitHub</h2>
+        <p>Click "Sign in" and connect your GitHub account. Layla only needs permission to create repos and push files.</p>
+
+        <h2>Step 2 — Click Publish</h2>
+        <p>On your preview, hit the Publish button. Layla will:</p>
+        <ul>
+          <li>Create a new GitHub repo for your site</li>
+          <li>Push your HTML, CSS, and JS files</li>
+          <li>Enable GitHub Pages automatically</li>
+        </ul>
+
+        <h2>Step 3 — Go live</h2>
+        <p>Your site will be live at:</p>
+        <div class="code-block">https://your-username.github.io/your-site-name</div>
+
+        <div class="tip-box">
+          ✦ &nbsp; GitHub Pages is completely free for public repos.
+        </div>
+      </div>
+
+      <!-- API -->
+      <div class="doc-section" id="doc-api">
+        <h1>API Reference</h1>
+        <p class="lead">Generate 3D websites programmatically with the Layla API.</p>
+
+        <h2>Base URL</h2>
+        <div class="code-block">https://api.layla.build/v1</div>
+
+        <h2>Generate a site</h2>
+        <div class="code-block">POST /generate
+
+{
+  "prompt": "dark portfolio with floating cubes",
+  "style": "dark",
+  "download": true
+}</div>
+
+        <h2>Response</h2>
+        <div class="code-block">{
+  "id": "site_abc123",
+  "preview_url": "https://preview.layla.build/site_abc123",
+  "download_url": "https://api.layla.build/v1/download/site_abc123"
+}</div>
+
+        <div class="tip-box">
+          ✦ &nbsp; API access is available on the Team plan. Coming soon.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EXAMPLES -->
+  <div class="page" id="page-examples">
+    <div class="page-title">EXAMPLE<span>S</span></div>
+    <p class="page-sub">Click any example to use it as your starting prompt.</p>
+    <div class="examples-grid">
+      <div class="ex-card" onclick="useExample('floating galaxy portfolio')">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#0a0a1a,#1a0a3a)">🌌</div>
+        <div class="ex-card-body"><h3>Galaxy Portfolio</h3><p>Stars and floating 3D text</p></div>
+      </div>
+      <div class="ex-card" onclick="useExample('3d product showcase with rotating model')">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#f0eeff,#ede9ff)">📦</div>
+        <div class="ex-card-body"><h3>Product Showcase</h3><p>Rotating 3D product display</p></div>
+      </div>
+      <div class="ex-card" onclick="useExample('dark space landing page with asteroids')">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#0a0a0a,#1a1a2e)">🪐</div>
+        <div class="ex-card-body"><h3>Space Landing</h3><p>Dark theme with floating rocks</p></div>
+      </div>
+      <div class="ex-card" onclick="useExample('minimal 3d portfolio with floating cubes')">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#fff,#f5f5f5)">🟪</div>
+        <div class="ex-card-body"><h3>Minimal Portfolio</h3><p>Clean white with 3D cubes</p></div>
+      </div>
+      <div class="ex-card" onclick="useExample('neon cyberpunk city 3d website')">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#0d0221,#190d3a)">⚡</div>
+        <div class="ex-card-body"><h3>Cyberpunk City</h3><p>Neon lights and grid floors</p></div>
+      </div>
+      <div class="ex-card" onclick="useExample('3d ocean wave homepage')">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#001f3f,#0074d9)">🌊</div>
+        <div class="ex-card-body"><h3>Ocean Waves</h3><p>Animated 3D water surface</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <span>Layla &copy; 2026</span>
+    <div class="footer-links">
+      <a href="#">GitHub</a>
+      <a href="#">Twitter</a>
+      <a href="#">Contact</a>
+    </div>
+  </footer>
+
+  <script>
+    // ── THREE.JS ──
+    const canvas = document.getElementById('three-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 5;
+
+    const geometry = new THREE.TorusKnotGeometry(1.2, 0.38, 128, 16);
+    const material = new THREE.MeshStandardMaterial({ color: 0x6c63ff, roughness: 0.3, metalness: 0.6 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(3.2, 0, 0);
+    scene.add(mesh);
+
+    const wireMat = new THREE.MeshBasicMaterial({ color: 0x9d97ff, wireframe: true, transparent: true, opacity: 0.15 });
+    const wireMesh = new THREE.Mesh(geometry, wireMat);
+    wireMesh.position.set(3.2, 0, 0);
+    scene.add(wireMesh);
+
+    const sphereGeo = new THREE.SphereGeometry(0.08, 16, 16);
+    const spheres = [];
+    for (let i = 0; i < 12; i++) {
+      const s = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: 0x6c63ff, roughness: 0.4, metalness: 0.5 }));
+      s.position.set((Math.random()-0.5)*10, (Math.random()-0.5)*6, (Math.random()-0.5)*3);
+      s._speed = Math.random() * 0.005 + 0.002;
+      s._offset = Math.random() * Math.PI * 2;
+      scene.add(s);
+      spheres.push(s);
+    }
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dl = new THREE.DirectionalLight(0x6c63ff, 1.5); dl.position.set(5,5,5); scene.add(dl);
+    const dl2 = new THREE.DirectionalLight(0xffffff, 0.8); dl2.position.set(-5,-3,2); scene.add(dl2);
+
+    let t = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      t += 0.008;
+      mesh.rotation.x += 0.004;
+      mesh.rotation.y += 0.007;
+      mesh.position.y = Math.sin(t) * 0.18;
+      wireMesh.rotation.x = mesh.rotation.x;
+      wireMesh.rotation.y = mesh.rotation.y;
+      wireMesh.position.y = mesh.position.y;
+      spheres.forEach(s => {
+        s.position.y += Math.sin(t + s._offset) * s._speed;
+        s.position.x += Math.cos(t*0.5 + s._offset) * s._speed * 0.5;
+      });
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 0.4;
+      const y = (e.clientY / window.innerHeight - 0.5) * 0.4;
+      mesh.rotation.x += (-y - mesh.rotation.x) * 0.02;
+      mesh.rotation.y += (x - mesh.rotation.y) * 0.02;
+    });
+
+    // ── MOBILE DRAWER ──
+    function toggleDrawer() {
+      const drawer = document.getElementById('mobileDrawer');
+      const burger = document.getElementById('hamburger');
+      drawer.classList.toggle('open');
+      burger.classList.toggle('open');
+    }
+
+    // ── NAVIGATION ──
+    function showPage(name) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+      document.getElementById('page-' + name).classList.add('active');
+      document.getElementById('nav-' + name).classList.add('active');
+      canvas.style.display = name === 'home' ? 'block' : 'none';
+    }
+
+    function showDoc(name) {
+      document.querySelectorAll('.doc-section').forEach(d => d.classList.remove('active'));
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      document.getElementById('doc-' + name).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+
+    function useExample(prompt) {
+      showPage('home');
+      document.getElementById('promptInput').value = prompt;
+      document.getElementById('promptInput').focus();
+    }
+
+    function fillPrompt(el) {
+      document.getElementById('promptInput').value = el.textContent;
+      document.getElementById('promptInput').focus();
+    }
+
+    function handlePrompt() {
+      const val = document.getElementById('promptInput').value.trim();
+      if (!val) return;
+      alert('Layla is thinking...\n\n"' + val + '"\n\n(AI coming soon)');
+    }
+
+    document.getElementById('promptInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') handlePrompt();
+    });
+  </script>
+
+</body>
+</html>
