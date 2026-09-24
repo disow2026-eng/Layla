@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Layla</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-BoP4StWc.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-VDflZ5ax.css">
+</head>
+<body>
+
+  <canvas id="three-canvas"></canvas>
+
+  <!-- MOBILE DRAWER -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <a data-page="home">Home</a>
+    <a data-page="docs">Docs</a>
+    <a data-page="examples">Examples</a>
+    <button class="drawer-btn" id="drawerClose">Get started</button>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo" data-page="home">LAY<span>L</span>A</div>
+    <ul class="nav-links">
+      <li><a data-page="home" id="nav-home" class="active">Home</a></li>
+      <li><a data-page="docs" id="nav-docs">Docs</a></li>
+      <li><a data-page="examples" id="nav-examples">Examples</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="btn-ghost">Sign in</button>
+      <button class="btn-solid">Get started</button>
+    </div>
+    <div class="hamburger" id="hamburger">
+      <span></span><span></span><span></span>
+    </div>
+  </nav>
+
+  <!-- HOME -->
+  <div class="page active" id="page-home">
+    <div class="hero">
+      <h1 class="hero-title">LAY<span>L</span>A</h1>
+      <p class="hero-sub">
+        Describe your 3D website in plain words.<br>
+        We build it. You ship it.
+      </p>
+      <div class="prompt-wrapper">
+        <span class="prompt-icon">✦</span>
+        <input type="text" id="promptInput" placeholder="make me a 3d portfolio with floating cubes..." />
+        <button class="prompt-btn" id="buildBtn">Build &rarr;</button>
+      </div>
+      <div class="chips">
+        <div class="chip">3d landing page</div>
+        <div class="chip">floating galaxy portfolio</div>
+        <div class="chip">3d product showcase</div>
+        <div class="chip">dark space website</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCS -->
+  <div class="page" id="page-docs">
+    <div class="docs-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Getting Started</div>
+        <div class="sidebar-link active" data-doc="intro">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Introduction
+        </div>
+        <div class="sidebar-link" data-doc="quickstart">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Quick Start
+        </div>
+        <div class="sidebar-link" data-doc="prompts">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Writing Prompts
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Building</div>
+        <div class="sidebar-link" data-doc="customize">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19.5" cy="10.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><circle cx="13.5" cy="19.5" r="2.5"/></svg>
+          Customizing 3D
+        </div>
+        <div class="sidebar-link" data-doc="templates">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Templates
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Shipping</div>
+        <div class="sidebar-link" data-doc="download">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </div>
+        <div class="sidebar-link" data-doc="github">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          Publish to GitHub
+        </div>
+      </div>
+    </div>
+
+    <div class="docs-content">
+      <div class="doc-section active" id="doc-intro">
+        <h1>Welcome to Layla</h1>
+        <p class="lead">Layla is a 3D website builder powered by AI. You describe what you want in plain words, and Layla generates a fully working 3D website — ready to download or publish live.</p>
+        <h2>What is Layla?</h2>
+        <p>Layla uses AI to turn your ideas into real 3D websites built with HTML, CSS, and Three.js. No coding experience needed. If you can describe it, Layla can build it.</p>
+        <div class="tip-box">✦ &nbsp; Layla generates clean, downloadable code — not locked into any platform. You own everything.</div>
+        <h2>How it works</h2>
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h3>Write a prompt</h3><p>Describe your 3D website on the home page. Be as simple or detailed as you like.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h3>Layla builds it</h3><p>Our AI reads your prompt and generates a complete 3D website with animations, layout, and style.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h3>Preview & edit</h3><p>See your site live inside Layla. Tweak colors, shapes, and text with follow-up prompts.</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h3>Download or publish</h3><p>Export your site as a folder or push it live to GitHub Pages in one click.</p></div></div>
+      </div>
+      <div class="doc-section" id="doc-quickstart">
+        <h1>Quick Start</h1>
+        <p class="lead">Get your first 3D website live in under 5 minutes.</p>
+        <h2>Step 1 — Write your first prompt</h2>
+        <p>Go to the home page and type what you want in the prompt box. Example:</p>
+        <div class="code-block">make me a dark portfolio with floating purple cubes and my name in 3D</div>
+        <h2>Step 2 — Hit Build</h2>
+        <p>Press the Build button or hit Enter. Layla will generate your site and show you a live preview.</p>
+        <h2>Step 3 — Download your site</h2>
+        <ul><li><strong>index.html</strong> — your website</li><li><strong>style.css</strong> — all the styles</li><li><strong>scene.js</strong> — the 3D code</li></ul>
+        <div class="tip-box">✦ &nbsp; Open index.html in any browser and your 3D site works instantly — no server needed.</div>
+      </div>
+      <div class="doc-section" id="doc-prompts">
+        <h1>Writing Prompts</h1>
+        <p class="lead">The better your prompt, the better your site. Here's how to write great ones.</p>
+        <h2>Be descriptive</h2>
+        <div class="code-block">make a dark portfolio with floating geometric shapes, my name in big white 3D letters, and a purple glow effect</div>
+        <h2>Mention the vibe</h2>
+        <p>Words like <em>minimal, dark, cyberpunk, clean, space, neon, luxury</em> help Layla match the right style.</p>
+        <h2>Good prompt examples</h2>
+        <ul><li>floating galaxy portfolio with stars and 3D text</li><li>dark neon product showcase with a spinning logo</li><li>minimal white site with one floating cube in the center</li><li>ocean wave homepage with blue animated water</li></ul>
+        <div class="tip-box">✦ &nbsp; You can always refine your site with follow-up prompts like "make the background darker" or "add more shapes."</div>
+      </div>
+      <div class="doc-section" id="doc-customize">
+        <h1>Customizing 3D</h1>
+        <p class="lead">After your site is generated, you can fine-tune every detail.</p>
+        <h2>Colors</h2><div class="code-block">change the background to black and make the shapes gold</div>
+        <h2>Shapes</h2><div class="code-block">replace the cubes with floating diamonds</div>
+        <h2>Animation speed</h2><div class="code-block">make the rotation slower and add a gentle floating effect</div>
+        <h2>Camera</h2><div class="code-block">zoom out the camera and tilt it slightly downward</div>
+      </div>
+      <div class="doc-section" id="doc-templates">
+        <h1>Templates</h1>
+        <p class="lead">Start fast with a pre-built template and customize from there.</p>
+        <ul><li><strong>Galaxy Portfolio</strong> — dark, stars, floating 3D text</li><li><strong>Product Showcase</strong> — light, rotating model center stage</li><li><strong>Space Landing</strong> — asteroids, planets, dark atmosphere</li><li><strong>Minimal Cube</strong> — clean white, single floating cube</li><li><strong>Cyberpunk City</strong> — neon grid, glowing lines</li><li><strong>Ocean Waves</strong> — animated blue water surface</li></ul>
+        <div class="tip-box">✦ &nbsp; Go to the Examples tab to click any template and auto-load it as your starting prompt.</div>
+      </div>
+      <div class="doc-section" id="doc-download">
+        <h1>Downloading Your Site</h1>
+        <p class="lead">Your site is yours. Export it any time as a clean code folder.</p>
+        <ul><li><strong>index.html</strong> — the full page structure</li><li><strong>style.css</strong> — all visual styles</li><li><strong>scene.js</strong> — the Three.js 3D scene</li><li><strong>assets/</strong> — any images or fonts used</li></ul>
+        <h2>Hosting options</h2>
+        <ul><li>GitHub Pages (free)</li><li>Netlify (drag and drop)</li><li>Vercel</li><li>Your own server</li></ul>
+      </div>
+      <div class="doc-section" id="doc-github">
+        <h1>Publish to GitHub</h1>
+        <p class="lead">Push your 3D site live in one click using GitHub Pages.</p>
+        <h2>Step 1 — Connect GitHub</h2>
+        <p>Click "Sign in" and connect your GitHub account.</p>
+        <h2>Step 2 — Click Publish</h2>
+        <ul><li>Create a new GitHub repo for your site</li><li>Push your HTML, CSS, and JS files</li><li>Enable GitHub Pages automatically</li></ul>
+        <h2>Step 3 — Go live</h2>
+        <div class="code-block">https://your-username.github.io/your-site-name</div>
+        <div class="tip-box">✦ &nbsp; GitHub Pages is completely free for public repos.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXAMPLES -->
+  <div class="page" id="page-examples">
+    <div class="page-title">EXAMPLE<span>S</span></div>
+    <p class="page-sub">Click any example to use it as your starting prompt.</p>
+    <div class="examples-grid">
+      <div class="ex-card" data-prompt="floating galaxy portfolio">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#0a0a1a,#1a0a3a)">🌌</div>
+        <div class="ex-card-body"><h3>Galaxy Portfolio</h3><p>Stars and floating 3D text</p></div>
+      </div>
+      <div class="ex-card" data-prompt="3d product showcase with rotating model">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#f0eeff,#ede9ff)">📦</div>
+        <div class="ex-card-body"><h3>Product Showcase</h3><p>Rotating 3D product display</p></div>
+      </div>
+      <div class="ex-card" data-prompt="dark space landing page with asteroids">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#0a0a0a,#1a1a2e)">🪐</div>
+        <div class="ex-card-body"><h3>Space Landing</h3><p>Dark theme with floating rocks</p></div>
+      </div>
+      <div class="ex-card" data-prompt="minimal 3d portfolio with floating cubes">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#fff,#f5f5f5)">🟪</div>
+        <div class="ex-card-body"><h3>Minimal Portfolio</h3><p>Clean white with 3D cubes</p></div>
+      </div>
+      <div class="ex-card" data-prompt="neon cyberpunk city 3d website">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#0d0221,#190d3a)">⚡</div>
+        <div class="ex-card-body"><h3>Cyberpunk City</h3><p>Neon lights and grid floors</p></div>
+      </div>
+      <div class="ex-card" data-prompt="3d ocean wave homepage">
+        <div class="ex-preview" style="background:linear-gradient(135deg,#001f3f,#0074d9)">🌊</div>
+        <div class="ex-card-body"><h3>Ocean Waves</h3><p>Animated 3D water surface</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <span>Layla &copy; 2026</span>
+    <div class="footer-links">
+      <a href="#">GitHub</a>
+      <a href="#">Twitter</a>
+      <a href="#">Contact</a>
+    </div>
+  </footer>
+
+</body>
+</html>

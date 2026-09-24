@@ -14,7 +14,6 @@ export class LaylaScene {
   private spheres: FloatingSphere[] = [];
   private t: number = 0;
   private canvas: HTMLCanvasElement;
-  private animFrameId: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -47,7 +46,7 @@ export class LaylaScene {
       const s = new THREE.Mesh(
         sphereGeo,
         new THREE.MeshStandardMaterial({ color: 0x6c63ff, roughness: 0.4, metalness: 0.5 })
-      ) as FloatingSphere;
+      ) as unknown as FloatingSphere;
       s.position.set(
         (Math.random() - 0.5) * 10,
         (Math.random() - 0.5) * 6,
@@ -73,7 +72,7 @@ export class LaylaScene {
   }
 
   private animate(): void {
-    this.animFrameId = requestAnimationFrame(() => this.animate());
+    requestAnimationFrame(() => this.animate());
     this.t += 0.008;
 
     this.mesh.rotation.x += 0.004;
