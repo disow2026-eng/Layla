@@ -2,6 +2,10 @@ import './style.css';
 import { LaylaScene } from './scene';
 import { showPage, showDoc, toggleDrawer } from './navigation';
 import type { PageName, DocName } from './navigation';
+import { openModal, updateNavForUser } from './auth';
+
+// ── Check auth state on load ──
+updateNavForUser();
 
 // ── Init 3D Scene ──
 const canvas = document.getElementById('three-canvas') as HTMLCanvasElement;
@@ -36,6 +40,10 @@ document.querySelectorAll<HTMLElement>('.mobile-drawer a').forEach(el => {
 
 // ── Hamburger ──
 document.getElementById('hamburger')?.addEventListener('click', toggleDrawer);
+
+// ── Auth buttons ──
+document.querySelector('.btn-ghost')?.addEventListener('click', openModal);
+document.querySelector('.btn-solid')?.addEventListener('click', openModal);
 document.getElementById('drawerClose')?.addEventListener('click', toggleDrawer);
 
 // ── Example cards ──
