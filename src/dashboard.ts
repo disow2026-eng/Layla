@@ -1,6 +1,6 @@
 import { getUser, signOut } from './lib/supabase';
 import { generateSite } from './engine/generator';
-import { laylaAI } from './engine/layla-ai';
+import { laylaAI, laylaAIEdit } from './engine/layla-ai';
 
 export interface Project {
   id: string;
@@ -62,6 +62,12 @@ export function removeProject(userId: string, id: string): void {
   saveProjects(userId, loadProjects(userId).filter(p => p.id !== id));
 }
 
+export function updateProjectHtml(userId: string, id: string, html: string): void {
+  const list = loadProjects(userId);
+  const idx = list.findIndex(p => p.id === id);
+  if (idx !== -1) { list[idx].html = html; saveProjects(userId, list); }
+}
+
 // ── Helpers ──────────────────────────────────────────────
 
 function timeAgo(iso: string): string {
@@ -76,6 +82,127 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// ── Editor ────────────────────────────────────────────────
+
+let _editorProject: Project | null = null;
+let _editorHtml = '';
+let _editorWired = false;
+
+export function openEditor(project: Project, userId: string): void {
+  _editorProject = project;
+  _editorHtml    = project.html;
+
+  const el = document.getElementById('editorMode')!;
+  el.style.display = 'flex';
+
+  // Update labels
+  const label = document.getElementById('editorProjectLabel');
+  if (label) label.textContent = project.prompt.slice(0, 44) + (project.prompt.length > 44 ? '…' : '');
+  const urlLabel = document.getElementById('editorUrlLabel');
+  if (urlLabel) urlLabel.textContent = 'layla://preview — ' + project.prompt.slice(0, 32);
+
+  // Load iframe
+  const frame = document.getElementById('editorFrame') as HTMLIFrameElement | null;
+  if (frame) frame.srcdoc = _editorHtml;
+
+  // Reset chat
+  const msgs = document.getElementById('editorMessages')!;
+  msgs.innerHTML = `
+    <div class="editor-welcome">
+      <div class="editor-welcome-icon">✦</div>
+      <p>Your site is ready. Ask Layla to make any changes.</p>
+      <span>Try: "make the headline red" or "add more floating spheres"</span>
+    </div>`;
+
+  _wireEditor(userId);
+}
+
+function _addMsg(role: 'user' | 'ai' | 'status', text: string): HTMLElement {
+  const msgs = document.getElementById('editorMessages')!;
+  msgs.querySelector('.editor-welcome')?.remove();
+  const div = document.createElement('div');
+  div.className = `editor-msg editor-msg-${role}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function _sendEdit(msg: string): Promise<void> {
+  if (!msg.trim()) return;
+  _addMsg('user', msg);
+  const statusEl = _addMsg('status', 'Layla AI is thinking…');
+
+  try {
+    const newHtml = await laylaAIEdit(_editorHtml, msg, (s) => { statusEl.textContent = s; });
+    _editorHtml = newHtml;
+    statusEl.remove();
+    const frame = document.getElementById('editorFrame') as HTMLIFrameElement | null;
+    if (frame) frame.srcdoc = _editorHtml;
+    _addMsg('ai', '✓ Done! Your site has been updated.');
+  } catch {
+    statusEl.remove();
+    _addMsg('ai', 'Could not apply that change — try rephrasing it.');
+  }
+}
+
+function _wireEditor(userId: string): void {
+  if (_editorWired) return;
+  _editorWired = true;
+
+  // Back
+  document.getElementById('editorBackBtn')?.addEventListener('click', () => {
+    document.getElementById('editorMode')!.style.display = 'none';
+  });
+
+  // Fullscreen
+  document.getElementById('editorFullBtn')?.addEventListener('click', () => {
+    if (!_editorHtml) return;
+    const url = URL.createObjectURL(new Blob([_editorHtml], { type: 'text/html' }));
+    window.open(url, '_blank');
+  });
+
+  // Download
+  document.getElementById('editorDlBtn')?.addEventListener('click', () => {
+    if (!_editorProject) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([_editorHtml], { type: 'text/html' }));
+    a.download = `layla-${_editorProject.id}.html`;
+    a.click();
+  });
+
+  // Save
+  document.getElementById('editorSaveBtn')?.addEventListener('click', () => {
+    if (!_editorProject) return;
+    updateProjectHtml(userId, _editorProject.id, _editorHtml);
+    _editorProject = { ..._editorProject, html: _editorHtml };
+    const btn = document.getElementById('editorSaveBtn') as HTMLButtonElement;
+    if (btn) { const t = btn.textContent; btn.textContent = '✓ Saved!'; setTimeout(() => { btn.textContent = t; }, 2000); }
+  });
+
+  // Send input
+  const input = document.getElementById('editorInput') as HTMLInputElement | null;
+  document.getElementById('editorSendBtn')?.addEventListener('click', () => {
+    const val = input?.value.trim() ?? '';
+    if (!val) return;
+    if (input) input.value = '';
+    _sendEdit(val);
+  });
+  input?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      const val = input.value.trim();
+      if (!val) return;
+      input.value = '';
+      _sendEdit(val);
+    }
+  });
+
+  // Quick chips
+  document.querySelectorAll<HTMLElement>('.editor-chip').forEach(chip => {
+    chip.addEventListener('click', () => _sendEdit(chip.dataset['msg'] ?? chip.textContent ?? ''));
+  });
+}
+
 // ── Render ────────────────────────────────────────────────
 
 function renderCard(p: Project, userId: string, onDelete: () => void): HTMLElement {
@@ -88,6 +215,9 @@ function renderCard(p: Project, userId: string, onDelete: () => void): HTMLEleme
       <div class="dash-project-meta">
         <span class="dash-project-time">${timeAgo(p.createdAt)}</span>
         <div class="dash-card-actions">
+          <button class="dash-edit-btn" title="Edit with AI">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
           <button class="dash-open-btn" title="Open preview">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </button>
@@ -103,6 +233,11 @@ function renderCard(p: Project, userId: string, onDelete: () => void): HTMLEleme
       </div>
     </div>
   `;
+
+  card.querySelector('.dash-edit-btn')!.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openEditor(p, userId);
+  });
 
   card.querySelector('.dash-open-btn')!.addEventListener('click', (e) => {
     e.stopPropagation();

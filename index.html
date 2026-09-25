@@ -438,6 +438,73 @@
       </div>
 
     </div><!-- /.dash-content -->
+
+    <!-- ── Editor Mode ── -->
+    <div id="editorMode" class="editor-mode" style="display:none">
+
+      <!-- Left: Chat panel -->
+      <div class="editor-left">
+        <div class="editor-header">
+          <button class="editor-back-btn" id="editorBackBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back
+          </button>
+          <span class="editor-project-label" id="editorProjectLabel">Editing project</span>
+        </div>
+
+        <div class="editor-messages" id="editorMessages">
+          <div class="editor-welcome">
+            <div class="editor-welcome-icon">✦</div>
+            <p>Your site is ready. Ask Layla to make any changes.</p>
+            <span>Try: "make the headline red" or "add more spheres"</span>
+          </div>
+        </div>
+
+        <div class="editor-bottom">
+          <div class="editor-quick-chips">
+            <button class="editor-chip" data-msg="Change the color scheme to something more vibrant and striking">Change colors</button>
+            <button class="editor-chip" data-msg="Make the headline text bigger and more impactful">Bigger headline</button>
+            <button class="editor-chip" data-msg="Add more 3D shapes floating around the scene">More shapes</button>
+            <button class="editor-chip" data-msg="Make the 3D animations faster and more energetic">Speed up</button>
+            <button class="editor-chip" data-msg="Change the font to something more modern and bold">Change font</button>
+            <button class="editor-chip" data-msg="Add a glowing neon effect to the 3D shapes">Neon glow</button>
+          </div>
+          <div class="editor-input-row">
+            <input type="text" id="editorInput" placeholder="Change colors, edit text, add shapes…" autocomplete="off" />
+            <button id="editorSendBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Live browser preview -->
+      <div class="editor-right">
+        <div class="editor-browser-bar">
+          <div class="editor-browser-dots">
+            <span class="browser-dot dot-red"></span>
+            <span class="browser-dot dot-yellow"></span>
+            <span class="browser-dot dot-green"></span>
+          </div>
+          <div class="editor-url-display">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span id="editorUrlLabel">layla://preview</span>
+          </div>
+          <div class="editor-browser-actions">
+            <button class="editor-action-btn" id="editorFullBtn" title="Open fullscreen in browser">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+            <button class="editor-action-btn" id="editorDlBtn" title="Download HTML">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+            <button class="btn-solid editor-save-btn" id="editorSaveBtn">Save</button>
+          </div>
+        </div>
+        <iframe id="editorFrame" class="editor-frame" sandbox="allow-scripts"></iframe>
+      </div>
+
+    </div><!-- /#editorMode -->
+
   </div><!-- /#page-dashboard -->
 
   <!-- FOOTER -->

@@ -162,3 +162,78 @@ export async function laylaAI(
   onStatus('Rendering your site…');
   return html;
 }
+
+// ── Edit existing site ────────────────────────────────────
+
+const EDIT_PROMPT = `You are Layla AI in edit mode. You receive an existing HTML website and ONE instruction from the user.
+
+Your job: apply ONLY the requested change — do not redesign or rewrite the whole site.
+
+Rules:
+- Return the COMPLETE updated HTML file (not just the changed part)
+- Make targeted, surgical edits
+- If asked to change colors: update the relevant CSS color values and Three.js colors
+- If asked to change text/headline: update only that text in the HTML
+- If asked to change 3D shapes: update the Three.js geometry (e.g. BoxGeometry → IcosahedronGeometry)
+- If asked to change fonts: update the Google Fonts <link> and CSS font-family
+- If asked to add shapes: add more meshes to the Three.js scene loop
+- If asked about speed/animation: adjust the rotation/float speed values
+- Keep all existing structure, layout, badge, and content unless specifically asked to change it
+
+CRITICAL: Return ONLY the raw HTML. No markdown. No code fences. No explanation.
+Start with exactly: <!DOCTYPE html>`;
+
+export async function laylaAIEdit(
+  currentHtml: string,
+  instruction: string,
+  onStatus: (msg: string) => void
+): Promise<string> {
+  if (!KEY) throw new Error('No API key configured.');
+
+  onStatus('Applying your change…');
+
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://disow2026-eng.github.io/Layla/',
+      'X-Title': 'Layla AI',
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: EDIT_PROMPT },
+        { role: 'user',   content: `Current HTML:\n\n${currentHtml}\n\nInstruction: ${instruction}` },
+      ],
+      max_tokens: 8000,
+      temperature: 0.4,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.statusText);
+    throw new Error(`Layla AI error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json() as {
+    choices?: Array<{ message?: { content?: string } }>;
+    error?: { message: string };
+  };
+
+  if (data.error) throw new Error(data.error.message);
+
+  let html = data.choices?.[0]?.message?.content?.trim() ?? '';
+  html = html
+    .replace(/^```html\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+
+  if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html')) {
+    throw new Error('Invalid response from AI.');
+  }
+
+  onStatus('Updating preview…');
+  return html;
+}
