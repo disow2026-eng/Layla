@@ -675,7 +675,7 @@ footer span { font-size: 12px; color: #aaa; }
   padding: 0 12px;
   display: flex;
   flex-direction: column;
-  gap: 84px;
+  gap: 48px;
 }
 
 .dash-nav-item {
