@@ -31,7 +31,18 @@ async function openDashboard(): Promise<void> {
 })();
 
 // ── Go to dashboard after sign-in ──
-window.addEventListener('layla:goto-dashboard', () => openDashboard());
+window.addEventListener('layla:goto-dashboard', async () => {
+  await openDashboard();
+  // Auto-build if user had a pending prompt from the landing page
+  const pending = sessionStorage.getItem('layla_pending_prompt');
+  if (pending) {
+    sessionStorage.removeItem('layla_pending_prompt');
+    const dashInput = document.getElementById('dashPromptInput') as HTMLInputElement | null;
+    if (dashInput) dashInput.value = pending;
+    showDashSection('new');
+    setTimeout(() => document.getElementById('dashBuildBtn')?.click(), 150);
+  }
+});
 
 
 // ── Nav links (desktop) ──
@@ -125,14 +136,28 @@ document.querySelectorAll<HTMLElement>('#page-home .chip').forEach(chip => {
   });
 });
 
-// ── Build button ──
+// ── Build button (home page) ──
 const buildBtn = document.getElementById('buildBtn');
 const promptInput = document.getElementById('promptInput') as HTMLInputElement;
 
-function handleBuild(): void {
+async function handleBuild(): Promise<void> {
   const val = promptInput.value.trim();
-  if (!val) return;
-  alert(`Layla is thinking...\n\n"${val}"\n\n(AI coming soon)`);
+  if (!val) { promptInput.focus(); return; }
+
+  const user = await getUser();
+  if (!user) {
+    // Save prompt, open auth — after login the pending prompt auto-builds
+    sessionStorage.setItem('layla_pending_prompt', val);
+    openModal();
+    return;
+  }
+
+  // Logged in — go to dashboard and auto-build
+  await openDashboard();
+  const dashInput = document.getElementById('dashPromptInput') as HTMLInputElement | null;
+  if (dashInput) dashInput.value = val;
+  showDashSection('new');
+  setTimeout(() => document.getElementById('dashBuildBtn')?.click(), 150);
 }
 
 buildBtn?.addEventListener('click', handleBuild);

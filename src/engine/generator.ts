@@ -1,246 +1,270 @@
-// ── Layla Site Generator ─────────────────────────────────
-// Parses a user prompt → generates a standalone Three.js HTML site
+// ── Layla Site Generator (fallback) ──────────────────────
+// Used when AI is unavailable — still generates beautiful sites
 
-interface SceneConfig {
-  title: string;
-  bgColor: string;
-  cubeColors: string[];
-  lightColor1: string;
-  lightColor2: string;
-  cubeCount: number;
-  cubeMinSize: number;
-  cubeMaxSize: number;
-  spread: number;
-  rotSpeed: number;
-  floatSpeed: number;
-  fog: boolean;
+interface Theme {
+  bg: string;
+  accent: string;
+  colors: string[];
+  light1: string;
+  light2: string;
+  font: string;
+  fontUrl: string;
 }
 
-// ── Color themes ─────────────────────────────────────────
+// ── Themes ───────────────────────────────────────────────
 
-function parseColors(p: string): Pick<SceneConfig, 'bgColor' | 'cubeColors' | 'lightColor1' | 'lightColor2'> {
+function getTheme(p: string): Theme {
   if (/neon|cyberpunk|cyber/.test(p))
-    return { bgColor: '#0d0221', cubeColors: ['#ff00ff','#00ffff','#ff3800','#00ff41','#ff006e'], lightColor1: '#ff00ff', lightColor2: '#00ffff' };
+    return { bg:'#0d0221', accent:'#ff00ff', colors:['#ff00ff','#00ffff','#ff3800','#00ff41'], light1:'#ff00ff', light2:'#00ffff', font:'Syne', fontUrl:'https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&display=swap' };
   if (/space|galaxy|cosmos|star|universe/.test(p))
-    return { bgColor: '#050510', cubeColors: ['#6c63ff','#4facfe','#a78bfa','#818cf8','#38bdf8'], lightColor1: '#4facfe', lightColor2: '#6c63ff' };
+    return { bg:'#050510', accent:'#6c63ff', colors:['#6c63ff','#4facfe','#a78bfa','#818cf8'], light1:'#4facfe', light2:'#6c63ff', font:'Space Grotesk', fontUrl:'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap' };
   if (/fire|lava|flame|hot|volcano/.test(p))
-    return { bgColor: '#1a0500', cubeColors: ['#ff4500','#ff6b35','#f9c74f','#ff0000','#ff8800'], lightColor1: '#ff4500', lightColor2: '#f9c74f' };
+    return { bg:'#1a0500', accent:'#ff4500', colors:['#ff4500','#ff6b35','#f9c74f','#ff0000'], light1:'#ff4500', light2:'#f9c74f', font:'Syne', fontUrl:'https://fonts.googleapis.com/css2?family=Syne:wght@400;800&display=swap' };
   if (/ocean|sea|water|wave|aqua/.test(p))
-    return { bgColor: '#001830', cubeColors: ['#0ea5e9','#22d3ee','#0284c7','#38bdf8','#06b6d4'], lightColor1: '#0ea5e9', lightColor2: '#22d3ee' };
+    return { bg:'#001830', accent:'#0ea5e9', colors:['#0ea5e9','#22d3ee','#0284c7','#38bdf8'], light1:'#0ea5e9', light2:'#22d3ee', font:'Inter', fontUrl:'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap' };
   if (/forest|nature|leaf|tree|jungle/.test(p))
-    return { bgColor: '#021a04', cubeColors: ['#10b981','#22c55e','#84cc16','#16a34a','#4ade80'], lightColor1: '#10b981', lightColor2: '#84cc16' };
+    return { bg:'#021a04', accent:'#10b981', colors:['#10b981','#22c55e','#84cc16','#4ade80'], light1:'#10b981', light2:'#84cc16', font:'Inter', fontUrl:'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap' };
   if (/gold|luxury|royal|elegant|rich/.test(p))
-    return { bgColor: '#0a0800', cubeColors: ['#f59e0b','#fbbf24','#d97706','#fde68a','#ca8a04'], lightColor1: '#f59e0b', lightColor2: '#fde68a' };
-  if (/pink|rose|cherry|bloss|magenta/.test(p))
-    return { bgColor: '#1a0010', cubeColors: ['#ec4899','#f472b6','#e879f9','#db2777','#f9a8d4'], lightColor1: '#ec4899', lightColor2: '#e879f9' };
-  if (/red|crimson|ruby|blood/.test(p))
-    return { bgColor: '#1a0000', cubeColors: ['#ef4444','#f43f5e','#dc2626','#ff6b6b','#fca5a5'], lightColor1: '#ef4444', lightColor2: '#f43f5e' };
-  if (/blue|navy|azure/.test(p))
-    return { bgColor: '#000d1a', cubeColors: ['#3b82f6','#60a5fa','#2563eb','#93c5fd','#1d4ed8'], lightColor1: '#3b82f6', lightColor2: '#60a5fa' };
-  if (/green|emerald|jade|mint/.test(p))
-    return { bgColor: '#001a08', cubeColors: ['#10b981','#34d399','#059669','#6ee7b7','#065f46'], lightColor1: '#10b981', lightColor2: '#34d399' };
-  if (/orange|sunset|amber/.test(p))
-    return { bgColor: '#1a0800', cubeColors: ['#f97316','#fb923c','#f59e0b','#ea580c','#fdba74'], lightColor1: '#f97316', lightColor2: '#f59e0b' };
-  if (/purple|violet|lavender/.test(p))
-    return { bgColor: '#0a0515', cubeColors: ['#6c63ff','#9d97ff','#a78bfa','#7c3aed','#c4b5fd'], lightColor1: '#6c63ff', lightColor2: '#a78bfa' };
+    return { bg:'#0a0800', accent:'#f59e0b', colors:['#f59e0b','#fbbf24','#d97706','#fde68a'], light1:'#f59e0b', light2:'#fde68a', font:'Cormorant Garamond', fontUrl:'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&display=swap' };
+  if (/pink|rose|cherry|blossom|magenta/.test(p))
+    return { bg:'#1a0010', accent:'#ec4899', colors:['#ec4899','#f472b6','#e879f9','#db2777'], light1:'#ec4899', light2:'#e879f9', font:'Space Grotesk', fontUrl:'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap' };
   if (/minimal|clean|white|light/.test(p))
-    return { bgColor: '#f0f0f0', cubeColors: ['#6c63ff','#64748b','#94a3b8','#475569','#334155'], lightColor1: '#6c63ff', lightColor2: '#94a3b8' };
-  if (/dark|black|shadow|night/.test(p))
-    return { bgColor: '#050505', cubeColors: ['#334155','#6c63ff','#475569','#1e293b','#9d97ff'], lightColor1: '#6c63ff', lightColor2: '#334155' };
-
-  // Default — Layla brand
-  return { bgColor: '#0a0a0a', cubeColors: ['#6c63ff','#9d97ff','#a78bfa','#818cf8','#7c3aed'], lightColor1: '#6c63ff', lightColor2: '#9d97ff' };
+    return { bg:'#f4f4f8', accent:'#6c63ff', colors:['#6c63ff','#64748b','#94a3b8','#475569'], light1:'#6c63ff', light2:'#94a3b8', font:'Inter', fontUrl:'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap' };
+  if (/purple|violet|lavender/.test(p))
+    return { bg:'#0a0515', accent:'#7c3aed', colors:['#6c63ff','#9d97ff','#a78bfa','#7c3aed'], light1:'#6c63ff', light2:'#a78bfa', font:'Space Grotesk', fontUrl:'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap' };
+  // default dark
+  return { bg:'#080810', accent:'#6c63ff', colors:['#6c63ff','#9d97ff','#a78bfa','#818cf8'], light1:'#6c63ff', light2:'#9d97ff', font:'Space Grotesk', fontUrl:'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap' };
 }
 
-function parseCount(p: string): number {
-  const match = p.match(/(\d+)\s*(cube|box|block|shape)/);
-  if (match) return Math.min(30, Math.max(3, parseInt(match[1])));
-  if (/few|simple|one|single|just a/.test(p)) return 4;
-  if (/many|lots|tons|full|packed|crowded|hundred/.test(p)) return 22;
-  if (/dozen/.test(p)) return 12;
-  return 10;
-}
+// ── Text content ─────────────────────────────────────────
 
-function parseSize(p: string): { cubeMinSize: number; cubeMaxSize: number } {
-  if (/tiny|small|little|mini/.test(p)) return { cubeMinSize: 0.2, cubeMaxSize: 0.7 };
-  if (/big|large|huge|giant|massive/.test(p)) return { cubeMinSize: 1.5, cubeMaxSize: 3.5 };
-  if (/mixed|varied|different size/.test(p)) return { cubeMinSize: 0.2, cubeMaxSize: 3.0 };
-  return { cubeMinSize: 0.5, cubeMaxSize: 1.5 };
-}
-
-function parseSpeed(p: string): { rotSpeed: number; floatSpeed: number } {
-  if (/fast|quick|rapid|speedy/.test(p)) return { rotSpeed: 0.04, floatSpeed: 0.014 };
-  if (/slow|gentle|calm|lazy|peaceful/.test(p)) return { rotSpeed: 0.004, floatSpeed: 0.003 };
-  if (/still|static|frozen/.test(p)) return { rotSpeed: 0.0005, floatSpeed: 0.001 };
-  return { rotSpeed: 0.015, floatSpeed: 0.006 };
-}
-
-// ── Config builder ────────────────────────────────────────
-
-function buildConfig(prompt: string): SceneConfig {
+function getContent(prompt: string): { headline: string; sub: string; cta: string; brand: string; nav: string[] } {
   const p = prompt.toLowerCase();
-  const colors = parseColors(p);
-  const { cubeMinSize, cubeMaxSize } = parseSize(p);
-  const { rotSpeed, floatSpeed } = parseSpeed(p);
-  const count = parseCount(p);
-  const title = prompt.length > 50 ? prompt.slice(0, 50) + '…' : prompt;
 
-  return {
-    title,
-    ...colors,
-    cubeCount: count,
-    cubeMinSize,
-    cubeMaxSize,
-    spread: count > 15 ? 32 : count > 8 ? 24 : 18,
-    rotSpeed,
-    floatSpeed,
-    fog: /fog|mist|haze|smoke/.test(p),
-  };
+  if (/portfolio/.test(p)) {
+    const name = prompt.match(/(?:for|by|'s)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/)?.[1] ?? 'Creative';
+    return { brand: name.split(' ')[0].toUpperCase(), headline: `${name}'s Portfolio`, sub: 'Designer. Developer. Creator. Building experiences that matter.', cta: 'View Work', nav: ['Work','About','Contact'] };
+  }
+  if (/product|showcase|app|saas|software/.test(p)) {
+    const name = prompt.match(/(?:called|named|for)\s+([A-Z][a-zA-Z]+)/)?.[1] ?? 'Launch';
+    return { brand: name.toUpperCase(), headline: 'Ship Faster.\nBuild Better.', sub: 'The platform that helps teams move from idea to production in record time.', cta: 'Get Early Access', nav: ['Features','Pricing','Docs'] };
+  }
+  if (/agency|studio|creative/.test(p)) {
+    return { brand: 'STUDIO', headline: 'We Build\nDigital Worlds', sub: 'A creative studio crafting brands, websites, and digital experiences that inspire.', cta: 'See Our Work', nav: ['Work','Services','About'] };
+  }
+  if (/restaurant|food|cafe|coffee|kitchen/.test(p)) {
+    return { brand: 'TASTE', headline: 'Food That\nTells a Story', sub: 'Locally sourced. Expertly crafted. Unforgettably delicious.', cta: 'Reserve a Table', nav: ['Menu','About','Reserve'] };
+  }
+  if (/music|band|artist|album/.test(p)) {
+    return { brand: 'SOUND', headline: 'Feel Every\nNote', sub: 'Original music that moves you. New album out now.', cta: 'Listen Now', nav: ['Music','Tour','Contact'] };
+  }
+  if (/space|galaxy|cosmos|universe/.test(p)) {
+    return { brand: 'COSMOS', headline: 'Explore\nthe Universe', sub: 'Journey through galaxies, nebulae, and the infinite depths of space.', cta: 'Begin Journey', nav: ['Explore','Missions','About'] };
+  }
+  if (/game|gaming/.test(p)) {
+    return { brand: 'PLAY', headline: 'Enter\nthe Game', sub: 'Immersive worlds. Endless adventures. Your story starts here.', cta: 'Play Now', nav: ['Games','Community','Store'] };
+  }
+
+  // generic
+  const words = prompt.split(' ').filter(w => w.length > 3);
+  const headline = words.slice(0,3).map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+  return { brand: 'LAYLA', headline: headline || 'Build the\nFuture', sub: 'A stunning 3D website built in seconds with Layla AI. Describe anything — we build it.', cta: 'Get Started', nav: ['Home','Work','Contact'] };
 }
 
-// ── HTML generator ────────────────────────────────────────
+// ── Geometry selector ────────────────────────────────────
 
-function buildScript(cfg: SceneConfig): string {
-  const colors = JSON.stringify(cfg.cubeColors);
-  const fogLine = cfg.fog
-    ? `scene.fog = new THREE.FogExp2('${cfg.bgColor}', 0.045);`
-    : '';
-
-  return [
-    `const scene = new THREE.Scene();`,
-    `scene.background = new THREE.Color('${cfg.bgColor}');`,
-    fogLine,
-    ``,
-    `const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 300);`,
-    `camera.position.z = 22;`,
-    ``,
-    `const renderer = new THREE.WebGLRenderer({ antialias: true });`,
-    `renderer.setSize(innerWidth, innerHeight);`,
-    `renderer.setPixelRatio(Math.min(devicePixelRatio, 2));`,
-    `document.body.appendChild(renderer.domElement);`,
-    ``,
-    `// Lights`,
-    `scene.add(new THREE.AmbientLight(0xffffff, 0.4));`,
-    `const dl1 = new THREE.DirectionalLight('${cfg.lightColor1}', 2.5);`,
-    `dl1.position.set(10, 10, 10); scene.add(dl1);`,
-    `const dl2 = new THREE.DirectionalLight('${cfg.lightColor2}', 2.0);`,
-    `dl2.position.set(-10, -5, 8); scene.add(dl2);`,
-    `const dl3 = new THREE.DirectionalLight(0xffffff, 0.5);`,
-    `dl3.position.set(0, -10, -5); scene.add(dl3);`,
-    ``,
-    `// Cubes`,
-    `const COLORS = ${colors};`,
-    `const cubes = [];`,
-    `const wires = [];`,
-    `for (let i = 0; i < ${cfg.cubeCount}; i++) {`,
-    `  const s = ${cfg.cubeMinSize} + Math.random() * ${(cfg.cubeMaxSize - cfg.cubeMinSize).toFixed(2)};`,
-    `  const geo = new THREE.BoxGeometry(s, s, s);`,
-    `  const mat = new THREE.MeshStandardMaterial({`,
-    `    color: COLORS[i % COLORS.length],`,
-    `    roughness: 0.25,`,
-    `    metalness: 0.65,`,
-    `  });`,
-    `  const mesh = new THREE.Mesh(geo, mat);`,
-    `  mesh.position.set(`,
-    `    (Math.random() - 0.5) * ${cfg.spread},`,
-    `    (Math.random() - 0.5) * ${(cfg.spread * 0.6).toFixed(1)},`,
-    `    (Math.random() - 0.5) * 12`,
-    `  );`,
-    `  mesh.rotation.set(Math.random()*6.28, Math.random()*6.28, Math.random()*6.28);`,
-    `  mesh._rx = (Math.random()-0.5) * ${cfg.rotSpeed.toFixed(4)};`,
-    `  mesh._ry = (Math.random()-0.5) * ${cfg.rotSpeed.toFixed(4)};`,
-    `  mesh._rz = (Math.random()-0.5) * ${(cfg.rotSpeed * 0.5).toFixed(4)};`,
-    `  mesh._fs = Math.random() * ${cfg.floatSpeed.toFixed(4)} + ${(cfg.floatSpeed * 0.3).toFixed(4)};`,
-    `  mesh._fo = Math.random() * 6.28;`,
-    `  scene.add(mesh);`,
-    `  cubes.push(mesh);`,
-    ``,
-    `  // Wireframe overlay`,
-    `  const wm = new THREE.MeshBasicMaterial({ color: COLORS[i % COLORS.length], wireframe: true, transparent: true, opacity: 0.12 });`,
-    `  const wf = new THREE.Mesh(geo, wm);`,
-    `  wf._ref = mesh;`,
-    `  scene.add(wf);`,
-    `  wires.push(wf);`,
-    `}`,
-    ``,
-    `// Mouse parallax`,
-    `let mx = 0, my = 0;`,
-    `document.addEventListener('mousemove', e => {`,
-    `  mx = (e.clientX / innerWidth - 0.5) * 2;`,
-    `  my = (e.clientY / innerHeight - 0.5) * 2;`,
-    `});`,
-    ``,
-    `// Resize`,
-    `window.addEventListener('resize', () => {`,
-    `  camera.aspect = innerWidth / innerHeight;`,
-    `  camera.updateProjectionMatrix();`,
-    `  renderer.setSize(innerWidth, innerHeight);`,
-    `});`,
-    ``,
-    `// Animate`,
-    `let t = 0;`,
-    `(function animate() {`,
-    `  requestAnimationFrame(animate);`,
-    `  t += 0.008;`,
-    `  cubes.forEach(c => {`,
-    `    c.rotation.x += c._rx;`,
-    `    c.rotation.y += c._ry;`,
-    `    c.rotation.z += c._rz;`,
-    `    c.position.y += Math.sin(t + c._fo) * c._fs * 0.1;`,
-    `  });`,
-    `  wires.forEach(w => {`,
-    `    w.position.copy(w._ref.position);`,
-    `    w.rotation.copy(w._ref.rotation);`,
-    `  });`,
-    `  camera.position.x += (mx * 3 - camera.position.x) * 0.025;`,
-    `  camera.position.y += (-my * 2 - camera.position.y) * 0.025;`,
-    `  camera.lookAt(0, 0, 0);`,
-    `  renderer.render(scene, camera);`,
-    `})();`,
-  ].join('\n');
+function getGeometryCode(p: string): string {
+  if (/product|tech|saas|software|app/.test(p))
+    return `new THREE.TorusKnotGeometry(0.7 + Math.random()*0.4, 0.22 + Math.random()*0.1, 100, 16)`;
+  if (/luxury|gold|elegant|ring/.test(p))
+    return `Math.random()>.5 ? new THREE.TorusGeometry(0.8+Math.random()*0.5, 0.25, 16, 60) : new THREE.IcosahedronGeometry(0.5+Math.random()*0.6, 1)`;
+  if (/minimal|clean|portfolio/.test(p))
+    return `Math.random()>.5 ? new THREE.IcosahedronGeometry(0.4+Math.random()*0.8, 1) : new THREE.OctahedronGeometry(0.4+Math.random()*0.7)`;
+  if (/neon|cyber|grid/.test(p))
+    return `new THREE.BoxGeometry(0.6+Math.random()*0.9, 0.6+Math.random()*0.9, 0.6+Math.random()*0.9)`;
+  // default: mix
+  return `[new THREE.IcosahedronGeometry(0.4+Math.random()*0.8,1), new THREE.OctahedronGeometry(0.4+Math.random()*0.7), new THREE.TorusGeometry(0.6+Math.random()*0.4,0.2,12,40)][Math.floor(Math.random()*3)]`;
 }
 
-function buildHTML(cfg: SceneConfig): string {
-  const textColor = cfg.bgColor === '#f0f0f0' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.5)';
-  const badgeBg   = cfg.bgColor === '#f0f0f0' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.07)';
-  const badgeBorder = cfg.bgColor === '#f0f0f0' ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)';
-
-  return [
-    `<!DOCTYPE html>`,
-    `<html lang="en">`,
-    `<head>`,
-    `<meta charset="UTF-8"/>`,
-    `<meta name="viewport" content="width=device-width,initial-scale=1"/>`,
-    `<title>${cfg.title} — Built with Layla</title>`,
-    `<style>`,
-    `*{margin:0;padding:0;box-sizing:border-box}`,
-    `body{background:${cfg.bgColor};overflow:hidden}`,
-    `canvas{display:block}`,
-    `#badge{`,
-    `  position:fixed;bottom:18px;right:18px;`,
-    `  background:${badgeBg};`,
-    `  border:1px solid ${badgeBorder};`,
-    `  color:${textColor};`,
-    `  font-size:11px;padding:6px 14px;border-radius:100px;`,
-    `  backdrop-filter:blur(8px);letter-spacing:2px;`,
-    `  font-family:'Courier New',monospace;pointer-events:none;`,
-    `}`,
-    `#badge span{color:#6c63ff}`,
-    `</style>`,
-    `</head>`,
-    `<body>`,
-    `<div id="badge">LAY<span>L</span>A ✦</div>`,
-    `<script src="https://unpkg.com/three@0.160.0/build/three.min.js"><\/script>`,
-    `<script>`,
-    buildScript(cfg),
-    `<\/script>`,
-    `</body>`,
-    `</html>`,
-  ].join('\n');
-}
-
-// ── Public API ────────────────────────────────────────────
+// ── Main HTML builder ────────────────────────────────────
 
 export function generateSite(prompt: string): string {
-  return buildHTML(buildConfig(prompt));
+  const p = prompt.toLowerCase();
+  const theme = getTheme(p);
+  const content = getContent(prompt);
+  const geoCode = getGeometryCode(p);
+  const isLight = theme.bg === '#f4f4f8';
+  const textColor = isLight ? '#0a0a0a' : '#ffffff';
+  const subColor  = isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.65)';
+  const navBg     = isLight ? 'rgba(244,244,248,0.7)' : `rgba(${parseInt(theme.bg.slice(1,3),16)},${parseInt(theme.bg.slice(3,5),16)},${parseInt(theme.bg.slice(5,7),16)},0.5)`;
+  const navBorder = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)';
+  const badgeBg   = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)';
+  const badgeBorder = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.15)';
+  const badgeColor  = isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.6)';
+
+  const navLinks = content.nav.map(n => `<li><a href="#">${n}</a></li>`).join('');
+
+  // Particle stars for dark space/galaxy themes
+  const starCode = /space|galaxy|cosmos|star|universe/.test(p) ? `
+// Stars
+const starGeo = new THREE.BufferGeometry();
+const starCount = 1200;
+const starPos = new Float32Array(starCount * 3);
+for(let i=0;i<starCount*3;i++) starPos[i] = (Math.random()-0.5)*200;
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+const starMat = new THREE.PointsMaterial({color:0xffffff,size:0.18,transparent:true,opacity:0.7});
+scene.add(new THREE.Points(starGeo,starMat));` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${prompt.slice(0,60)} — Built with Layla</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="${theme.fontUrl}" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:${theme.bg};overflow:hidden;font-family:'${theme.font}',sans-serif}
+canvas{position:fixed;inset:0;z-index:0}
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:18px 48px;display:flex;align-items:center;justify-content:space-between;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  background:${navBg};border-bottom:1px solid ${navBorder};
+}
+.nav-logo{font-size:17px;font-weight:700;color:${textColor};letter-spacing:2px}
+.nav-links{display:flex;gap:28px;list-style:none}
+.nav-links a{color:${subColor};text-decoration:none;font-size:13px;font-weight:500;letter-spacing:.5px;transition:color .2s}
+.nav-links a:hover{color:${textColor}}
+.hero{
+  position:absolute;inset:0;z-index:10;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:0 24px;
+}
+.hero h1{
+  font-size:clamp(44px,8vw,92px);font-weight:700;
+  color:${textColor};line-height:1.05;letter-spacing:-2px;
+  white-space:pre-line;
+  animation:fadeUp .8s ease both;
+}
+.hero h1 span{color:${theme.accent}}
+.hero p{
+  margin-top:22px;font-size:18px;font-weight:300;
+  color:${subColor};max-width:500px;line-height:1.65;
+  animation:fadeUp .8s .15s ease both;
+}
+.hero-cta{
+  margin-top:36px;padding:14px 40px;
+  background:${theme.accent};color:#fff;border:none;border-radius:100px;
+  font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;
+  transition:transform .2s,box-shadow .2s;
+  animation:fadeUp .8s .3s ease both;
+}
+.hero-cta:hover{transform:scale(1.05);box-shadow:0 8px 32px ${theme.accent}55}
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+#badge{
+  position:fixed;bottom:18px;right:18px;
+  background:${badgeBg};border:1px solid ${badgeBorder};
+  color:${badgeColor};font-size:11px;padding:6px 14px;border-radius:100px;
+  font-family:'Courier New',monospace;letter-spacing:2px;
+  pointer-events:none;z-index:999;backdrop-filter:blur(8px);
+}
+#badge span{color:#6c63ff}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<nav>
+  <div class="nav-logo">${content.brand}</div>
+  <ul class="nav-links">${navLinks}</ul>
+</nav>
+<div class="hero">
+  <h1>${content.headline.replace(/\n/,'<br>')}</h1>
+  <p>${content.sub}</p>
+  <button class="hero-cta">${content.cta}</button>
+</div>
+<div id="badge">LAY<span>L</span>A ✦</div>
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('${theme.bg}');
+const camera = new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,300);
+camera.position.z = 22;
+const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff,${isLight ? 1.2 : 0.5}));
+const l1 = new THREE.PointLight('${theme.light1}',${isLight ? 1.5 : 3},80);
+l1.position.set(15,10,10); scene.add(l1);
+const l2 = new THREE.PointLight('${theme.light2}',${isLight ? 1.2 : 2.5},80);
+l2.position.set(-12,-8,8); scene.add(l2);
+const l3 = new THREE.DirectionalLight(0xffffff,${isLight ? 0.8 : 0.4});
+l3.position.set(0,-10,-5); scene.add(l3);
+
+${starCode}
+
+// Shapes
+const COLORS = ${JSON.stringify(theme.colors)};
+const meshes = [];
+const COUNT = 12;
+for(let i=0;i<COUNT;i++){
+  const geo = ${geoCode};
+  const mat = new THREE.MeshStandardMaterial({
+    color: COLORS[i%COLORS.length],
+    roughness: ${isLight ? 0.35 : 0.2},
+    metalness: ${isLight ? 0.4 : 0.7},
+  });
+  const mesh = new THREE.Mesh(geo,mat);
+  mesh.position.set(
+    (Math.random()-.5)*28,
+    (Math.random()-.5)*18,
+    (Math.random()-.5)*14
+  );
+  mesh.rotation.set(Math.random()*6.28,Math.random()*6.28,Math.random()*6.28);
+  mesh._rx = (Math.random()-.5)*.018;
+  mesh._ry = (Math.random()-.5)*.018;
+  mesh._rz = (Math.random()-.5)*.008;
+  mesh._fs = Math.random()*.006+.003;
+  mesh._fo = Math.random()*6.28;
+  scene.add(mesh);
+  meshes.push(mesh);
+}
+
+// Mouse parallax
+let mx=0,my=0;
+document.addEventListener('mousemove',e=>{
+  mx=(e.clientX/innerWidth-.5)*2;
+  my=(e.clientY/innerHeight-.5)*2;
+});
+
+// Resize
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// Animate
+let t=0;
+(function animate(){
+  requestAnimationFrame(animate);
+  t+=.008;
+  meshes.forEach(m=>{
+    m.rotation.x+=m._rx;
+    m.rotation.y+=m._ry;
+    m.rotation.z+=m._rz;
+    m.position.y+=Math.sin(t+m._fo)*m._fs*.1;
+  });
+  camera.position.x+=(mx*3-camera.position.x)*.025;
+  camera.position.y+=(-my*2-camera.position.y)*.025;
+  camera.lookAt(0,0,0);
+  renderer.render(scene,camera);
+})();
+</script>
+</body>
+</html>`;
 }
