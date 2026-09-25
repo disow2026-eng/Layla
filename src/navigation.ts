@@ -1,6 +1,6 @@
 import type { LaylaScene } from './scene';
 
-export type PageName = 'home' | 'docs' | 'examples';
+export type PageName = 'home' | 'docs' | 'examples' | 'dashboard';
 export type DocName = 'intro' | 'quickstart' | 'prompts' | 'customize' | 'templates' | 'download' | 'github';
 
 export function showPage(name: PageName, scene: LaylaScene): void {

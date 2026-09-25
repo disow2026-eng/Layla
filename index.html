@@ -204,6 +204,158 @@
     </div>
   </div>
 
+  <!-- DASHBOARD -->
+  <div class="page" id="page-dashboard">
+
+    <!-- Sidebar -->
+    <div class="dash-sidebar">
+      <div class="dash-profile">
+        <div class="dash-avatar" id="dashAvatar">U</div>
+        <div class="dash-profile-info">
+          <div class="dash-username" id="dashUsername">User</div>
+          <div class="dash-plan">Free plan</div>
+        </div>
+      </div>
+
+      <nav class="dash-nav">
+        <div class="dash-nav-item active" data-dash="overview">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Overview
+        </div>
+        <div class="dash-nav-item" data-dash="projects">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          My Projects
+        </div>
+        <div class="dash-nav-item" data-dash="new">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          New Project
+        </div>
+        <div class="dash-nav-item" data-dash="settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </div>
+      </nav>
+
+      <div class="dash-signout" id="dashSignOut">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="dash-content">
+
+      <!-- Overview -->
+      <div class="dash-section active" id="dash-overview">
+        <div class="dash-section-header">
+          <h1 class="dash-heading">Overview</h1>
+          <button class="btn-solid dash-header-btn" id="overviewNewBtn">+ New Project</button>
+        </div>
+
+        <div class="dash-stats">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div class="stat-num" id="stat-projects">0</div>
+            <div class="stat-label">Projects</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </div>
+            <div class="stat-num" id="stat-published">0</div>
+            <div class="stat-label">Published</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <div class="stat-num" id="stat-prompts">0</div>
+            <div class="stat-label">Prompts Used</div>
+          </div>
+        </div>
+
+        <div class="dash-subsection-header">
+          <h2 class="dash-subheading">Recent Projects</h2>
+        </div>
+        <div id="overviewProjectsGrid" class="dash-projects-grid"></div>
+        <div id="overviewEmpty" class="dash-empty">
+          <div class="dash-empty-icon">✦</div>
+          <p>No projects yet</p>
+          <span>Build your first 3D site to get started.</span>
+          <button class="prompt-btn" id="overviewBuildBtn">Build something →</button>
+        </div>
+      </div>
+
+      <!-- My Projects -->
+      <div class="dash-section" id="dash-projects">
+        <div class="dash-section-header">
+          <h1 class="dash-heading">My Projects</h1>
+          <button class="btn-solid dash-header-btn" id="projectsNewBtn">+ New Project</button>
+        </div>
+        <div id="projectsGrid" class="dash-projects-grid"></div>
+        <div id="projectsEmpty" class="dash-empty">
+          <div class="dash-empty-icon">✦</div>
+          <p>No projects yet</p>
+          <span>Your saved 3D sites will appear here.</span>
+          <button class="prompt-btn" id="projectsBuildBtn">Build something →</button>
+        </div>
+      </div>
+
+      <!-- New Project -->
+      <div class="dash-section" id="dash-new">
+        <h1 class="dash-heading">New Project</h1>
+        <p class="dash-sub">Describe your 3D website and Layla will build it.</p>
+        <div class="prompt-wrapper dash-prompt-wrapper">
+          <span class="prompt-icon">✦</span>
+          <input type="text" id="dashPromptInput" placeholder="make me a 3d portfolio with floating cubes..." />
+          <button class="prompt-btn" id="dashBuildBtn">Build →</button>
+        </div>
+        <div class="chips dash-chips">
+          <div class="chip dash-chip" data-prompt="floating galaxy portfolio with stars and 3D text">floating galaxy portfolio</div>
+          <div class="chip dash-chip" data-prompt="3d product showcase with rotating model">3d product showcase</div>
+          <div class="chip dash-chip" data-prompt="dark space landing page with asteroids">dark space landing</div>
+          <div class="chip dash-chip" data-prompt="neon cyberpunk city 3d website with glowing grid">cyberpunk city</div>
+          <div class="chip dash-chip" data-prompt="minimal 3d portfolio with floating cubes">minimal portfolio</div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="dash-section" id="dash-settings">
+        <h1 class="dash-heading">Settings</h1>
+
+        <div class="settings-card">
+          <h2 class="settings-section-title">Account</h2>
+          <div class="settings-row">
+            <div class="settings-label">Email</div>
+            <div class="settings-value" id="settingsEmail">—</div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Plan</div>
+            <div class="settings-value">Free &nbsp;<span class="badge-accent">Active</span></div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">Member since</div>
+            <div class="settings-value" id="settingsJoined">—</div>
+          </div>
+        </div>
+
+        <div class="settings-card settings-danger-card">
+          <h2 class="settings-section-title settings-danger-title">Danger Zone</h2>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Sign out of Layla</div>
+              <div class="settings-hint">You'll need to sign in again to access your projects.</div>
+            </div>
+            <button class="btn-danger" id="settingsSignOut">Sign out</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.dash-content -->
+  </div><!-- /#page-dashboard -->
+
   <!-- FOOTER -->
   <footer>
     <span>Layla &copy; 2026</span>

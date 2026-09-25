@@ -115,5 +115,6 @@ export async function updateNavForUser(): Promise<void> {
       location.reload();
     };
     getStartedBtn.textContent = 'Dashboard';
+    getStartedBtn.dataset['action'] = 'dashboard';
   }
 }

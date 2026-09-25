@@ -3,6 +3,7 @@ import { LaylaScene } from './scene';
 import { showPage, showDoc, toggleDrawer } from './navigation';
 import type { PageName, DocName } from './navigation';
 import { openModal, updateNavForUser } from './auth';
+import { initDashboard, showDashSection } from './dashboard';
 
 // ── Check auth state on load ──
 updateNavForUser();
@@ -10,6 +11,18 @@ updateNavForUser();
 // ── Init 3D Scene ──
 const canvas = document.getElementById('three-canvas') as HTMLCanvasElement;
 const scene = new LaylaScene(canvas);
+
+// ── Dashboard init ──
+let dashboardReady = false;
+async function openDashboard(): Promise<void> {
+  showPage('dashboard', scene);
+  if (!dashboardReady) {
+    dashboardReady = true;
+    await initDashboard(() => { location.reload(); });
+  }
+  showDashSection('overview');
+}
+
 
 // ── Nav links (desktop) ──
 document.querySelectorAll<HTMLElement>('.nav-links a, .logo').forEach(el => {
@@ -43,7 +56,14 @@ document.getElementById('hamburger')?.addEventListener('click', toggleDrawer);
 
 // ── Auth buttons ──
 document.querySelector('.btn-ghost')?.addEventListener('click', openModal);
-document.querySelector('.btn-solid')?.addEventListener('click', openModal);
+document.querySelector('.btn-solid')?.addEventListener('click', () => {
+  const btn = document.querySelector<HTMLElement>('.btn-solid');
+  if (btn?.dataset['action'] === 'dashboard') {
+    openDashboard();
+  } else {
+    openModal();
+  }
+});
 document.getElementById('drawerClose')?.addEventListener('click', toggleDrawer);
 
 // ── Example cards ──
@@ -59,8 +79,8 @@ document.querySelectorAll<HTMLElement>('.ex-card').forEach(card => {
   });
 });
 
-// ── Prompt chips ──
-document.querySelectorAll<HTMLElement>('.chip').forEach(chip => {
+// ── Prompt chips (home page only) ──
+document.querySelectorAll<HTMLElement>('#page-home .chip').forEach(chip => {
   chip.addEventListener('click', () => {
     const input = document.getElementById('promptInput') as HTMLInputElement;
     input.value = chip.textContent?.trim() ?? '';
