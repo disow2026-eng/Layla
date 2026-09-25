@@ -389,6 +389,22 @@
         </div>
       </div>
 
+      <!-- Inline preview (shown after build) -->
+      <div id="dashInlinePreview" style="display:none; margin-top:28px;">
+        <div class="inline-preview-bar">
+          <span class="inline-preview-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Live Preview
+          </span>
+          <div class="inline-preview-actions">
+            <button class="btn-solid" id="inlineSaveBtn" style="font-size:12px;padding:8px 18px">✓ Saved to Projects</button>
+            <button class="btn-ghost" id="inlineDownloadBtn" style="font-size:12px;padding:8px 18px">Download</button>
+            <button class="btn-ghost" id="inlineFullscreenBtn" style="font-size:12px;padding:8px 18px">⛶ Fullscreen</button>
+          </div>
+        </div>
+        <iframe id="dashInlineFrame" class="inline-preview-frame" sandbox="allow-scripts"></iframe>
+      </div>
+
       <!-- Settings -->
       <div class="dash-section" id="dash-settings">
         <h1 class="dash-heading">Settings</h1>

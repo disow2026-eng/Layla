@@ -1,4 +1,5 @@
 import { getUser, signOut } from './lib/supabase';
+import { generateSite } from './engine/generator';
 
 export interface Project {
   id: string;
@@ -6,6 +7,7 @@ export interface Project {
   createdAt: string;
   gradient: string;
   emoji: string;
+  html: string;
 }
 
 const GRADIENTS = [
@@ -47,6 +49,7 @@ export function addProject(userId: string, prompt: string): Project {
     createdAt: new Date().toISOString(),
     gradient: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)],
     emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+    html: generateSite(prompt),
   };
   const list = loadProjects(userId);
   list.unshift(project);
@@ -83,17 +86,28 @@ function renderCard(p: Project, userId: string, onDelete: () => void): HTMLEleme
       <div class="dash-project-prompt">${p.prompt}</div>
       <div class="dash-project-meta">
         <span class="dash-project-time">${timeAgo(p.createdAt)}</span>
-        <button class="dash-delete-btn" title="Delete">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6M14 11v6"/>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-          </svg>
-        </button>
+        <div class="dash-card-actions">
+          <button class="dash-open-btn" title="Open preview">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </button>
+          <button class="dash-delete-btn" title="Delete">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   `;
+
+  card.querySelector('.dash-open-btn')!.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openPreviewModal(p);
+  });
+
   card.querySelector('.dash-delete-btn')!.addEventListener('click', (e) => {
     e.stopPropagation();
     card.classList.add('dash-card-removing');
@@ -103,6 +117,65 @@ function renderCard(p: Project, userId: string, onDelete: () => void): HTMLEleme
     }, 200);
   });
   return card;
+}
+
+// ── Preview modal ─────────────────────────────────────────
+
+function openPreviewModal(p: Project): void {
+  const existing = document.getElementById('previewModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'previewModal';
+  modal.className = 'preview-modal';
+  modal.innerHTML = `
+    <div class="preview-modal-backdrop"></div>
+    <div class="preview-modal-box">
+      <div class="preview-modal-bar">
+        <span class="preview-modal-title">${p.prompt}</span>
+        <div class="preview-modal-actions">
+          <button class="btn-ghost preview-dl-btn" style="font-size:12px;padding:7px 16px">Download</button>
+          <button class="btn-ghost preview-fs-btn" style="font-size:12px;padding:7px 16px">⛶ Fullscreen</button>
+          <button class="preview-close-btn">✕</button>
+        </div>
+      </div>
+      <iframe class="preview-modal-frame" sandbox="allow-scripts"></iframe>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  requestAnimationFrame(() => modal.classList.add('open'));
+
+  const frame = modal.querySelector<HTMLIFrameElement>('.preview-modal-frame')!;
+  frame.srcdoc = p.html;
+
+  modal.querySelector('.preview-modal-backdrop')!.addEventListener('click', () => closePreviewModal());
+  modal.querySelector('.preview-close-btn')!.addEventListener('click', () => closePreviewModal());
+
+  modal.querySelector('.preview-dl-btn')!.addEventListener('click', () => downloadHTML(p));
+  modal.querySelector('.preview-fs-btn')!.addEventListener('click', () => openFullscreen(p));
+}
+
+function closePreviewModal(): void {
+  const modal = document.getElementById('previewModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  setTimeout(() => modal.remove(), 250);
+}
+
+function downloadHTML(p: Project): void {
+  const blob = new Blob([p.html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `layla-${p.id}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function openFullscreen(p: Project): void {
+  const blob = new Blob([p.html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 
 function renderGrid(userId: string, gridEl: HTMLElement, emptyEl: HTMLElement, limit?: number): void {
@@ -211,16 +284,30 @@ export async function initDashboard(onSignOut: () => void): Promise<string | nul
     const val = buildInput?.value.trim() ?? '';
     if (!val) { buildInput?.focus(); return; }
 
-    // Loading state
-    if (buildBtn) { buildBtn.textContent = 'Building…'; buildBtn.disabled = true; }
+    if (buildBtn) { buildBtn.textContent = 'Generating…'; buildBtn.disabled = true; }
 
     setTimeout(() => {
-      addProject(userId, val);
+      const project = addProject(userId, val);
       if (buildInput) buildInput.value = '';
       if (buildBtn) { buildBtn.textContent = 'Build →'; buildBtn.disabled = false; }
       refreshDashboard(userId);
-      showDashSection('projects');
-    }, 800);
+
+      // Show inline preview
+      const previewPanel = document.getElementById('dashInlinePreview');
+      const previewFrame = document.getElementById('dashInlineFrame') as HTMLIFrameElement | null;
+      if (previewPanel && previewFrame) {
+        previewFrame.srcdoc = project.html;
+        previewPanel.style.display = 'block';
+        previewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // Wire preview action buttons for this project
+      document.getElementById('inlineDownloadBtn')?.addEventListener('click', () => downloadHTML(project), { once: true });
+      document.getElementById('inlineFullscreenBtn')?.addEventListener('click', () => openFullscreen(project), { once: true });
+      document.getElementById('inlineSaveBtn')?.addEventListener('click', () => {
+        showDashSection('projects');
+      }, { once: true });
+    }, 600);
   };
 
   buildBtn?.addEventListener('click', handleBuild);
