@@ -116,5 +116,10 @@ export async function updateNavForUser(): Promise<void> {
     };
     getStartedBtn.textContent = 'Dashboard';
     getStartedBtn.dataset['action'] = 'dashboard';
+
+    // Show "Back to Dashboard" buttons on Docs and Examples pages
+    document.querySelectorAll<HTMLElement>('.back-to-dash').forEach(btn => {
+      btn.style.display = 'flex';
+    });
   }
 }

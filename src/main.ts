@@ -4,6 +4,7 @@ import { showPage, showDoc, toggleDrawer } from './navigation';
 import type { PageName, DocName } from './navigation';
 import { openModal, updateNavForUser } from './auth';
 import { initDashboard, showDashSection } from './dashboard';
+import { getUser } from './lib/supabase';
 
 // ── Check auth state on load ──
 updateNavForUser();
@@ -26,9 +27,14 @@ async function openDashboard(): Promise<void> {
 
 // ── Nav links (desktop) ──
 document.querySelectorAll<HTMLElement>('.nav-links a, .logo').forEach(el => {
-  el.addEventListener('click', () => {
+  el.addEventListener('click', async () => {
     const page = el.dataset['page'] as PageName | undefined;
-    if (page) showPage(page, scene);
+    if (!page) return;
+    if (page === 'home') {
+      const user = await getUser();
+      if (user) { openDashboard(); return; }
+    }
+    showPage(page, scene);
   });
 });
 
@@ -42,13 +48,21 @@ document.querySelectorAll<HTMLElement>('.sidebar-link').forEach(el => {
 
 // ── Mobile drawer links ──
 document.querySelectorAll<HTMLElement>('.mobile-drawer a').forEach(el => {
-  el.addEventListener('click', () => {
+  el.addEventListener('click', async () => {
     const page = el.dataset['page'] as PageName | undefined;
-    if (page) {
-      showPage(page, scene);
-      toggleDrawer();
+    if (!page) return;
+    toggleDrawer();
+    if (page === 'home') {
+      const user = await getUser();
+      if (user) { openDashboard(); return; }
     }
+    showPage(page, scene);
   });
+});
+
+// ── "Back to Dashboard" buttons (on docs/examples when logged in) ──
+document.querySelectorAll<HTMLElement>('.back-to-dash').forEach(btn => {
+  btn.addEventListener('click', () => openDashboard());
 });
 
 // ── Hamburger ──
