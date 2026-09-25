@@ -1,5 +1,6 @@
 import { getUser, signOut } from './lib/supabase';
 import { generateSite } from './engine/generator';
+import { laylaAI } from './engine/layla-ai';
 
 export interface Project {
   id: string;
@@ -42,14 +43,14 @@ function saveProjects(userId: string, projects: Project[]): void {
   localStorage.setItem(storageKey(userId), JSON.stringify(projects));
 }
 
-export function addProject(userId: string, prompt: string): Project {
+export function addProject(userId: string, prompt: string, html?: string): Project {
   const project: Project = {
     id: Date.now().toString(),
     prompt,
     createdAt: new Date().toISOString(),
     gradient: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)],
     emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
-    html: generateSite(prompt),
+    html: html ?? generateSite(prompt),
   };
   const list = loadProjects(userId);
   list.unshift(project);
@@ -280,37 +281,48 @@ export async function initDashboard(onSignOut: () => void): Promise<string | nul
   const buildBtn   = document.getElementById('dashBuildBtn') as HTMLButtonElement | null;
   const buildInput = document.getElementById('dashPromptInput') as HTMLInputElement | null;
 
-  const handleBuild = () => {
+  const setBtn = (text: string, disabled: boolean) => {
+    if (buildBtn) { buildBtn.textContent = text; buildBtn.disabled = disabled; }
+  };
+
+  const showPreview = (project: Project) => {
+    const previewPanel = document.getElementById('dashInlinePreview');
+    const previewFrame = document.getElementById('dashInlineFrame') as HTMLIFrameElement | null;
+    if (previewPanel && previewFrame) {
+      previewFrame.srcdoc = project.html;
+      previewPanel.style.display = 'block';
+      previewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    document.getElementById('inlineDownloadBtn')?.addEventListener('click', () => downloadHTML(project), { once: true });
+    document.getElementById('inlineFullscreenBtn')?.addEventListener('click', () => openFullscreen(project), { once: true });
+    document.getElementById('inlineSaveBtn')?.addEventListener('click', () => showDashSection('projects'), { once: true });
+  };
+
+  const handleBuild = async () => {
     const val = buildInput?.value.trim() ?? '';
     if (!val) { buildInput?.focus(); return; }
 
-    if (buildBtn) { buildBtn.textContent = 'Generating…'; buildBtn.disabled = true; }
+    setBtn('Connecting to Layla AI…', true);
 
-    setTimeout(() => {
-      const project = addProject(userId, val);
-      if (buildInput) buildInput.value = '';
-      if (buildBtn) { buildBtn.textContent = 'Build →'; buildBtn.disabled = false; }
-      refreshDashboard(userId);
+    let html: string;
+    try {
+      html = await laylaAI(val, (status) => setBtn(status, true));
+    } catch (err) {
+      console.warn('Layla AI failed, using fallback generator:', err);
+      setBtn('Generating with fallback…', true);
+      await new Promise(r => setTimeout(r, 400));
+      html = generateSite(val);
+    }
 
-      // Show inline preview
-      const previewPanel = document.getElementById('dashInlinePreview');
-      const previewFrame = document.getElementById('dashInlineFrame') as HTMLIFrameElement | null;
-      if (previewPanel && previewFrame) {
-        previewFrame.srcdoc = project.html;
-        previewPanel.style.display = 'block';
-        previewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+    if (buildInput) buildInput.value = '';
+    setBtn('Build →', false);
 
-      // Wire preview action buttons for this project
-      document.getElementById('inlineDownloadBtn')?.addEventListener('click', () => downloadHTML(project), { once: true });
-      document.getElementById('inlineFullscreenBtn')?.addEventListener('click', () => openFullscreen(project), { once: true });
-      document.getElementById('inlineSaveBtn')?.addEventListener('click', () => {
-        showDashSection('projects');
-      }, { once: true });
-    }, 600);
+    const project = addProject(userId, val, html);
+    refreshDashboard(userId);
+    showPreview(project);
   };
 
-  buildBtn?.addEventListener('click', handleBuild);
+  buildBtn?.addEventListener('click', () => { handleBuild(); });
   buildInput?.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Enter') handleBuild();
   });
