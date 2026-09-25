@@ -77,7 +77,7 @@ document.querySelectorAll<HTMLElement>('.back-to-dash').forEach(btn => {
 // ── Hamburger ──
 document.getElementById('hamburger')?.addEventListener('click', toggleDrawer);
 
-// ── Auth buttons ──
+// ── Auth buttons (desktop) ──
 document.querySelector('.btn-ghost')?.addEventListener('click', openModal);
 document.querySelector('.btn-solid')?.addEventListener('click', () => {
   const btn = document.querySelector<HTMLElement>('.btn-solid');
@@ -87,7 +87,21 @@ document.querySelector('.btn-solid')?.addEventListener('click', () => {
     openModal();
   }
 });
-document.getElementById('drawerClose')?.addEventListener('click', toggleDrawer);
+
+// ── Auth buttons (mobile drawer) ──
+document.getElementById('drawerSignIn')?.addEventListener('click', () => {
+  toggleDrawer();
+  openModal();
+});
+document.getElementById('drawerGetStarted')?.addEventListener('click', () => {
+  const btn = document.querySelector<HTMLElement>('.btn-solid');
+  toggleDrawer();
+  if (btn?.dataset['action'] === 'dashboard') {
+    openDashboard();
+  } else {
+    openModal();
+  }
+});
 
 // ── Example cards ──
 document.querySelectorAll<HTMLElement>('.ex-card').forEach(card => {

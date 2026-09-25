@@ -122,5 +122,15 @@ export async function updateNavForUser(): Promise<void> {
     document.querySelectorAll<HTMLElement>('.back-to-dash').forEach(btn => {
       btn.style.display = 'flex';
     });
+
+    // Update mobile drawer auth buttons
+    const drawerSignIn = document.getElementById('drawerSignIn');
+    const drawerGetStarted = document.getElementById('drawerGetStarted');
+    if (drawerSignIn) {
+      drawerSignIn.textContent = user.email?.split('@')[0] ?? 'Account';
+      drawerSignIn.style.color = '#6c63ff';
+      drawerSignIn.style.borderColor = '#6c63ff';
+    }
+    if (drawerGetStarted) drawerGetStarted.textContent = 'Dashboard';
   }
 }
