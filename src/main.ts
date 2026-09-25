@@ -24,6 +24,12 @@ async function openDashboard(): Promise<void> {
   showDashSection('overview');
 }
 
+// ── Auto-redirect to dashboard if already logged in ──
+(async () => {
+  const user = await getUser();
+  if (user) openDashboard();
+})();
+
 
 // ── Nav links (desktop) ──
 document.querySelectorAll<HTMLElement>('.nav-links a, .logo').forEach(el => {
