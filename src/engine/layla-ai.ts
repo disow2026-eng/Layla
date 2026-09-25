@@ -2,7 +2,7 @@
 // Powered by OpenRouter
 
 const KEY   = import.meta.env['VITE_OPENROUTER_KEY'] as string;
-const MODEL = 'google/gemini-2.0-flash-exp:free';
+const MODEL = 'deepseek/deepseek-v3-0324:free';
 
 const SYSTEM_PROMPT = `You are Layla AI — you generate COMPLETE, STUNNING, STANDALONE HTML websites with Three.js 3D scenes and real content overlaid on top. Every site must look like it took a senior designer weeks to build.
 
