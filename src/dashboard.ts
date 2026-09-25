@@ -140,9 +140,17 @@ async function _sendEdit(msg: string): Promise<void> {
     const frame = document.getElementById('editorFrame') as HTMLIFrameElement | null;
     if (frame) frame.srcdoc = _editorHtml;
     _addMsg('ai', '✓ Done! Your site has been updated.');
-  } catch {
+  } catch (err: unknown) {
     statusEl.remove();
-    _addMsg('ai', 'Could not apply that change — try rephrasing it.');
+    const message = err instanceof Error ? err.message : String(err);
+    // Classify the error so user knows what to do
+    let friendly = `⚠ ${message}`;
+    if (/rate limit/i.test(message)) friendly = '⏳ Rate limit — wait a few seconds and try again.';
+    else if (/network/i.test(message)) friendly = '📡 Network error — check your connection and retry.';
+    else if (/api key/i.test(message)) friendly = '🔑 API key issue — the OpenRouter key may be invalid.';
+    else if (/cut off|too long/i.test(message)) friendly = '✂ Response cut off — try a more specific instruction like "change headline to X" instead of a big change.';
+    else if (/unexpected output|misunderstood/i.test(message)) friendly = '🤔 AI misunderstood — try being more specific, e.g. "change the headline color to red" or "make cubes blue".';
+    _addMsg('ai', friendly);
   }
 }
 

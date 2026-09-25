@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Iron Man HUD</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      color: #00d4ff;
+      font-family: 'Courier New', monospace;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hud {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* Corner brackets */
+    .corner {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-color: #00d4ff;
+      border-style: solid;
+      opacity: 0.8;
+    }
+    .corner.tl { top: 20px; left: 20px; border-width: 3px 0 0 3px; }
+    .corner.tr { top: 20px; right: 20px; border-width: 3px 3px 0 0; }
+    .corner.bl { bottom: 20px; left: 20px; border-width: 0 0 3px 3px; }
+    .corner.br { bottom: 20px; right: 20px; border-width: 0 3px 3px 0; }
+
+    /* Top center */
+    .top-center {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+    .top-center .label {
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: #ff4444;
+      text-shadow: 0 0 8px #ff4444;
+    }
+    .top-center .time {
+      font-size: 36px;
+      font-weight: bold;
+      color: #00d4ff;
+      text-shadow: 0 0 15px #00d4ff;
+      letter-spacing: 4px;
+    }
+    .top-center .date {
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: #aaa;
+    }
+
+    /* Arc Reactor Center */
+    .arc-reactor {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .arc-outer {
+      width: 180px;
+      height: 180px;
+      border: 2px solid #00d4ff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: rotateSlow 8s linear infinite;
+      box-shadow: 0 0 20px #00d4ff44;
+      position: relative;
+    }
+    .arc-outer::before {
+      content: '';
+      position: absolute;
+      width: 160px;
+      height: 160px;
+      border: 1px dashed #00d4ff55;
+      border-radius: 50%;
+      animation: rotateSlow 4s linear infinite reverse;
+    }
+    .arc-middle {
+      width: 120px;
+      height: 120px;
+      border: 2px solid #00d4ff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: rotateSlow 5s linear infinite reverse;
+      box-shadow: 0 0 15px #00d4ff66;
+    }
+    .arc-inner {
+      width: 70px;
+      height: 70px;
+      background: radial-gradient(circle, #00d4ff, #0044ff, #000);
+      border-radius: 50%;
+      box-shadow: 0 0 30px #00d4ff, 0 0 60px #00d4ff55;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes rotateSlow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 30px #00d4ff, 0 0 60px #00d4ff55; }
+      50% { box-shadow: 0 0 50px #00d4ff, 0 0 100px #00d4ffaa; }
+    }
+
+    /* Radar - left */
+    .radar-container {
+      position: absolute;
+      bottom: 60px;
+      left: 60px;
+    }
+    .radar-label {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #ff4444;
+      margin-bottom: 6px;
+      text-shadow: 0 0 6px #ff4444;
+    }
+    .radar {
+      width: 140px;
+      height: 140px;
+      border: 2px solid #00d4ff44;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 10px #00d4ff22;
+    }
+    .radar::before, .radar::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border: 1px solid #00d4ff22;
+      border-radius: 50%;
+    }
+    .radar::before { width: 90px; height: 90px; }
+    .radar::after  { width: 45px; height: 45px; }
+    .radar-line-h, .radar-line-v {
+      position: absolute;
+      background: #00d4ff22;
+    }
+    .radar-line-h { width: 100%; height: 1px; top: 50%; }
+    .radar-line-v { width: 1px; height: 100%; left: 50%; }
+    .radar-sweep {
+      position: absolute;
+      width: 50%;
+      height: 50%;
+      top: 0; left: 50%;
+      transform-origin: bottom left;
+      background: conic-gradient(from 0deg, transparent 80%, #00d4ff55);
+      animation: sweep 3s linear infinite;
+    }
+    @keyframes sweep {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    .blip {
+      position: absolute;
+      width: 6px; height: 6px;
+      background: #ff4444;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #ff4444;
+      animation: blink 1.5s infinite;
+    }
+    .blip1 { top: 30px; left: 80px; }
+    .blip2 { top: 90px; left: 40px; }
+    .blip3 { top: 60px; left: 100px; }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* Stats - right */
+    .stats {
+      position: absolute;
+      bottom: 60px;
+      right: 60px;
+      width: 200px;
+    }
+    .stats-label {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #ff4444;
+      margin-bottom: 10px;
+      text-shadow: 0 0 6px #ff4444;
+    }
+    .stat-row {
+      margin-bottom: 10px;
+    }
+    .stat-name {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #aaa;
+      margin-bottom: 3px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .stat-bar {
+      width: 100%;
+      height: 6px;
+      background: #001a22;
+      border: 1px solid #00d4ff33;
+    }
+    .stat-fill {
+      height: 100%;
+      background: #00d4ff;
+      box-shadow: 0 0 8px #00d4ff;
+      transition: width 1s ease;
+    }
+    .stat-fill.red   { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
+    .stat-fill.green { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+
+    /* Left panel */
+    .left-panel {
+      position: absolute;
+      top: 50%;
+      left: 30px;
+      transform: translateY(-50%);
+      font-size: 10px;
+      letter-spacing: 2px;
+      line-height: 2;
+      color: #00d4ffaa;
+    }
+    .left-panel .highlight { color: #00ff88; text-shadow: 0 0 6px #00ff88; }
+    .left-panel .warn      { color: #ff4444; text-shadow: 0 0 6px #ff4444; animation: blink 1s infinite; }
+
+    /* Right panel */
+    .right-panel {
+      position: absolute;
+      top: 50%;
+      right: 30px;
+      transform: translateY(-50%);
+      font-size: 10px;
+      letter-spacing: 2px;
+      line-height: 2;
+      color: #00d4ffaa;
+      text-align: right;
+    }
+    .right-panel .highlight { color: #00ff88; text-shadow: 0 0 6px #00ff88; }
+
+    /* Scanning line */
+    .scan-line {
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(to right, transparent, #00d4ff44, transparent);
+      animation: scanDown 4s linear infinite;
+      top: 0;
+    }
+    @keyframes scanDown {
+      0%   { top: 0; opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    /* Status bar bottom center */
+    .status-bar {
+      position: absolute;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: #00d4ff88;
+      text-align: center;
+    }
+    .status-bar span {
+      color: #00ff88;
+      text-shadow: 0 0 6px #00ff88;
+    }
+
+    /* Top horizontal lines */
+    .hline {
+      position: absolute;
+      height: 1px;
+      background: linear-gradient(to right, transparent, #00d4ff55, transparent);
+    }
+    .hline.top { top: 90px; width: 100%; }
+    .hline.bot { bottom: 90px; width: 100%; }
+  </style>
+</head>
+<body>
+<div class="hud">
+
+  <!-- Scan line -->
+  <div class="scan-line"></div>
+
+  <!-- Corners -->
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <!-- Horizontal lines -->
+  <div class="hline top"></div>
+  <div class="hline bot"></div>
+
+  <!-- Top Center -->
+  <div class="top-center">
+    <div class="label">// MARK VII ONLINE //</div>
+    <div class="time" id="clock">00:00:00</div>
+    <div class="date" id="dateDisplay">--</div>
+  </div>
+
+  <!-- Arc Reactor -->
+  <div class="arc-reactor">
+    <div class="arc-outer">
+      <div class="arc-middle">
+        <div class="arc-inner"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Radar -->
+  <div class="radar-container">
+    <div class="radar-label">// THREAT RADAR //</div>
+    <div class="radar">
+      <div class="radar-line-h"></div>
+      <div class="radar-line-v"></div>
+      <div class="radar-sweep"></div>
+      <div class="blip blip1"></div>
+      <div class="blip blip2"></div>
+      <div class="blip blip3"></div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stats-label">// SYSTEM STATUS //</div>
+
+    <div class="stat-row">
+      <div class="stat-name"><span>POWER</span><span id="powerVal">94%</span></div>
+      <div class="stat-bar"><div class="stat-fill" id="powerBar" style="width:94%"></div></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-name"><span>SHIELD</span><span id="shieldVal">78%</span></div>
+      <div class="stat-bar"><div class="stat-fill green" id="shieldBar" style="width:78%"></div></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-name"><span>WEAPONS</span><span>READY</span></div>
+      <div class="stat-bar"><div class="stat-fill red" style="width:100%"></div></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-name"><span>REPULSOR</span><span>87%</span></div>
+      <div class="stat-bar"><div class="stat-fill" style="width:87%"></div></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-name"><span>JARVIS AI</span><span class="highlight">ONLINE</span></div>
+      <div class="stat-bar"><div class="stat-fill green" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- Left Panel -->
+  <div class="left-panel">
+    <div>SUIT &nbsp;&nbsp;&nbsp;: <span class="highlight">MARK VII</span></div>
+    <div>PILOT &nbsp;: <span class="highlight">T. STARK</span></div>
+    <div>ALTITUDE: <span class="highlight" id="altitude">3,200 FT</span></div>
+    <div>SPEED &nbsp;: <span class="highlight" id="speed">847 MPH</span></div>
+    <div>TEMP &nbsp;&nbsp;: <span class="highlight">72°F</span></div>
+    <div>TARGETS : <span class="warn" id="targets">3 DETECTED</span></div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+    <div><span class="highlight">ONLINE</span> :NETWORK</div>
+    <div><span class="highlight">ACTIVE</span> :STEALTH</div>
+    <div><span class="highlight">LOCKED</span> :GPS</div>
+    <div><span class="highlight" id="location">40.7128° N</span> :LAT</div>
+    <div><span class="highlight">74.0060° W</span> :LONG</div>
+    <div><span class="highlight">NOMINAL</span> :CORE TEMP</div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    JARVIS v4.1 &nbsp;|&nbsp; ALL SYSTEMS <span>NOMINAL</span> &nbsp;|&nbsp; STARK INDUSTRIES
+  </div>
+
+</div>
+
+<script>
+  // Live clock
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+
+    const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    document.getElementById('dateDisplay').textContent =
+      `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Animate stats randomly
+  function randomStat(id, valId, min, max) {
+    const val = Math.floor(Math.random() * (max - min) + min);
+    document.getElementById(id).style.width = val + '%';
+    document.getElementById(valId).textContent = val + '%';
+  }
+
+  setInterval(() => {
+    randomStat('powerBar', 'powerVal', 88, 99);
+    randomStat('shieldBar', 'shieldVal', 70, 90);
+  }, 3000);
+
+  // Animate altitude and speed
+  setInterval(() => {
+    const alt = (3000 + Math.floor(Math.random() * 500)).toLocaleString();
+    const spd = (800 + Math.floor(Math.random() * 100));
+    document.getElementById('altitude').textContent = alt + ' FT';
+    document.getElementById('speed').textContent = spd + ' MPH';
+  }, 2000);
+</script>
+</body>
+</html>
