@@ -1,6 +1,7 @@
 import { getUser, signOut } from './lib/supabase';
 import { generateSite } from './engine/generator';
 import { laylaAI, laylaAIEdit } from './engine/layla-ai';
+import { makeZip } from './lib/zip';
 
 export interface Project {
   id: string;
@@ -170,13 +171,10 @@ function _wireEditor(userId: string): void {
     window.open(url, '_blank');
   });
 
-  // Download
+  // Download as ZIP
   document.getElementById('editorDlBtn')?.addEventListener('click', () => {
     if (!_editorProject) return;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([_editorHtml], { type: 'text/html' }));
-    a.download = `layla-${_editorProject.id}.html`;
-    a.click();
+    downloadZip({ ..._editorProject, html: _editorHtml });
   });
 
   // Save
@@ -296,7 +294,7 @@ function openPreviewModal(p: Project): void {
   modal.querySelector('.preview-modal-backdrop')!.addEventListener('click', () => closePreviewModal());
   modal.querySelector('.preview-close-btn')!.addEventListener('click', () => closePreviewModal());
 
-  modal.querySelector('.preview-dl-btn')!.addEventListener('click', () => downloadHTML(p));
+  modal.querySelector('.preview-dl-btn')!.addEventListener('click', () => downloadZip(p));
   modal.querySelector('.preview-fs-btn')!.addEventListener('click', () => openFullscreen(p));
 }
 
@@ -307,11 +305,16 @@ function closePreviewModal(): void {
   setTimeout(() => modal.remove(), 250);
 }
 
-function downloadHTML(p: Project): void {
-  const blob = new Blob([p.html], { type: 'text/html' });
+function downloadZip(p: Project): void {
+  const slug = p.prompt.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40).replace(/-$/, '');
+  const readme = `# ${p.prompt}\n\nBuilt with Layla AI — https://disow2026-eng.github.io/Layla/\n\n## How to use\n\nOpen \`index.html\` in any browser to view your 3D site.\nNo server needed — it works offline.\n\n## Built on\n- Three.js (loaded from CDN)\n- Pure HTML + CSS + JS\n`;
+  const blob = makeZip([
+    { name: 'index.html', text: p.html },
+    { name: 'README.md', text: readme },
+  ]);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `layla-${p.id}.html`;
+  a.download = `layla-${slug}.zip`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -428,17 +431,9 @@ export async function initDashboard(onSignOut: () => void): Promise<string | nul
     if (buildBtn) { buildBtn.textContent = text; buildBtn.disabled = disabled; }
   };
 
+  // After build: open the editor directly instead of inline preview
   const showPreview = (project: Project) => {
-    const previewPanel = document.getElementById('dashInlinePreview');
-    const previewFrame = document.getElementById('dashInlineFrame') as HTMLIFrameElement | null;
-    if (previewPanel && previewFrame) {
-      previewFrame.srcdoc = project.html;
-      previewPanel.style.display = 'block';
-      previewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    document.getElementById('inlineDownloadBtn')?.addEventListener('click', () => downloadHTML(project), { once: true });
-    document.getElementById('inlineFullscreenBtn')?.addEventListener('click', () => openFullscreen(project), { once: true });
-    document.getElementById('inlineSaveBtn')?.addEventListener('click', () => showDashSection('projects'), { once: true });
+    openEditor(project, userId);
   };
 
   const handleBuild = async () => {
