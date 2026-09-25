@@ -30,6 +30,9 @@ async function openDashboard(): Promise<void> {
   if (user) openDashboard();
 })();
 
+// ── Go to dashboard after sign-in ──
+window.addEventListener('layla:goto-dashboard', () => openDashboard());
+
 
 // ── Nav links (desktop) ──
 document.querySelectorAll<HTMLElement>('.nav-links a, .logo').forEach(el => {

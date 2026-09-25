@@ -77,6 +77,7 @@ function bindModalEvents(): void {
     if (error) { errEl.textContent = error.message; return; }
     closeModal();
     await updateNavForUser();
+    window.dispatchEvent(new Event('layla:goto-dashboard'));
   });
 
   // Sign up
