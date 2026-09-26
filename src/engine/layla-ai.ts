@@ -20,6 +20,8 @@ async function callGroq(
   temperature = 0.2,
   onChunk?: (chars: number) => void
 ): Promise<string> {
+  if (!GROQ_KEY) throw new Error('No Groq key');
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), GROQ_TIMEOUT);
 
@@ -34,16 +36,18 @@ async function callGroq(
       },
       body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature, stream: true }),
     });
-  } finally {
     clearTimeout(timer);
+  } catch (e) {
+    clearTimeout(timer);
+    throw e; // network error or abort — let caller fall back to OpenRouter
   }
 
-  if (res!.status === 429) throw new Error('rate-limited');
-  if (res!.status === 401) throw new Error('Invalid Groq API key');
-  if (!res!.ok) throw new Error(`Groq ${res!.status}`);
-  if (!res!.body) throw new Error('No body');
+  if (res.status === 429) throw new Error('rate-limited');
+  if (res.status === 401) throw new Error('Invalid Groq API key');
+  if (!res.ok) throw new Error(`Groq error ${res.status}`);
+  if (!res.body) throw new Error('No response body');
 
-  const reader = res!.body.getReader();
+  const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let result = '';
   try {
@@ -58,7 +62,7 @@ async function callGroq(
           const delta = (JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> })
             .choices?.[0]?.delta?.content;
           if (delta) { result += delta; if (onChunk) onChunk(result.length); }
-        } catch { /* skip malformed */ }
+        } catch { /* skip malformed SSE line */ }
       }
     }
   } finally {
@@ -67,19 +71,15 @@ async function callGroq(
   return result;
 }
 
-// Models in priority order — skips unavailable/overloaded/rate-limited automatically
+// OpenRouter fallback models — only used if Groq fails
 const MODELS = [
   'qwen/qwen3.8-27b:free',
   'meta-llama/llama-3.3-70b-instruct:free',
   'google/gemma-3-27b-it:free',
   'google/gemma-4-31b-it:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'meta-llama/llama-3.1-8b-instruct:free',
-  'mistralai/mistral-7b-instruct:free',
-  'nvidia/nemotron-3.5-lightning:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'google/gemma-3-12b-it:free',
 ];
+
+const TOTAL_TIMEOUT_MS = 35000; // hard cap — never wait more than 35s total across all models
 
 async function callModel(
   messages: Array<{ role: string; content: string }>,
@@ -87,8 +87,10 @@ async function callModel(
 ): Promise<{ html: string; finishReason: string }> {
   let lastError = '';
   let rateLimitCount = 0;
+  const deadline = Date.now() + TOTAL_TIMEOUT_MS;
 
   for (const model of MODELS) {
+    if (Date.now() > deadline) break; // hard stop
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -156,7 +158,7 @@ REQUIRED STRUCTURE — always include all of these:
 4. <nav> with brand name and 3 relevant links
 5. .hero with a big REAL headline (not lorem ipsum — write something specific to the prompt topic), subheadline 1-2 sentences, a CTA button
 6. The LAYLA badge: <div id="badge" style="position:fixed;bottom:18px;right:18px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);font-size:11px;padding:6px 14px;border-radius:100px;font-family:'Courier New',monospace;letter-spacing:2px;pointer-events:none;z-index:999">LAY<span style="color:#6c63ff">L</span>A ✦</div>
-7. <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+7. <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
 8. Three.js scene in <script>: scene+camera+renderer on canvas#c, 10-16 mixed 3D objects, lights, per-mesh rotation+float animation, mouse parallax, resize handler
 
 GEOMETRY — pick based on topic (mix 2-3 types):
@@ -329,10 +331,12 @@ export async function laylaAIPatch(
   instruction: string,
   onLiveChars?: (chars: number) => void
 ): Promise<{ html: string; method: 'patch' | 'fallback' }> {
-  const htmlToSend = compressHtml(currentHtml);
+  // Send original HTML for patches (not compressed) so AI find-strings match exactly
+  // Truncate only if extremely long
+  const htmlForPatch = currentHtml.length > 14000 ? compressHtml(currentHtml) : currentHtml;
   const messages = [
     { role: 'system', content: PATCH_PROMPT },
-    { role: 'user', content: `HTML:\n${htmlToSend}\n\nInstruction: ${instruction}` },
+    { role: 'user', content: `HTML:\n${htmlForPatch}\n\nInstruction: ${instruction}` },
   ];
 
   // Fast path: Groq (~1-3s)
@@ -350,7 +354,9 @@ export async function laylaAIPatch(
 
   let lastError = '';
   let rateLimitCount = 0;
+  const deadline = Date.now() + TOTAL_TIMEOUT_MS;
   for (const model of MODELS) {
+    if (Date.now() > deadline) break;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     let res: Response;
@@ -556,9 +562,12 @@ export async function laylaAIEdit(
     }
 
     let html = accumulated.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+    // Strip any BOM or leading whitespace/text before the doctype
+    const doctypeIdx = html.search(/<!doctype|<html/i);
+    if (doctypeIdx > 0) html = html.slice(doctypeIdx);
 
     if (finishReason === 'length') throw new Error('Response cut off — try a more specific instruction.');
-    if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html'))
+    if (!/^<!doctype|^<html/i.test(html))
       throw new Error(`AI returned unexpected output. Started with: "${html.slice(0, 80)}"`);
 
     onStatus('Updating preview…');

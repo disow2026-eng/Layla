@@ -781,7 +781,7 @@ export function generateSite(prompt: string, aiConfig?: AIConfig): string {
 <body>
 ${bodyContent}
 <div id="badge" style="position:fixed;bottom:18px;right:18px;background:${badgeBg};border:1px solid ${badgeBorder};color:${badgeTextColor};font-size:11px;padding:6px 14px;border-radius:100px;font-family:'Courier New',monospace;letter-spacing:2px;pointer-events:none;z-index:999;backdrop-filter:blur(8px)">LAY<span style="color:#6c63ff">L</span>A ✦</div>
-<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
 <script>
 ${sceneCode}
 </script>
