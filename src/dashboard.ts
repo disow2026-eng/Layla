@@ -69,6 +69,28 @@ export function updateProjectHtml(userId: string, id: string, html: string): voi
   if (idx !== -1) { list[idx].html = html; saveProjects(userId, list); }
 }
 
+// ── Elapsed timer ─────────────────────────────────────────
+
+const TIMER_MSGS: [number, string][] = [
+  [0,  'Connecting to Layla AI…'],
+  [5,  'Building your site…'],
+  [12, 'Our servers might be slow — still working…'],
+  [25, 'Hang tight, almost there…'],
+  [38, 'Taking longer than usual — nearly done…'],
+];
+
+function startTimer(update: (text: string) => void): () => void {
+  const start = Date.now();
+  const tick = () => {
+    const s = Math.floor((Date.now() - start) / 1000);
+    const msg = [...TIMER_MSGS].reverse().find(([t]) => s >= t)?.[1] ?? TIMER_MSGS[0][1];
+    update(`${msg} (${s}s)`);
+  };
+  tick();
+  const id = setInterval(tick, 1000);
+  return () => clearInterval(id);
+}
+
 // ── Helpers ──────────────────────────────────────────────
 
 function timeAgo(iso: string): string {
@@ -132,16 +154,19 @@ function _addMsg(role: 'user' | 'ai' | 'status', text: string): HTMLElement {
 async function _sendEdit(msg: string): Promise<void> {
   if (!msg.trim()) return;
   _addMsg('user', msg);
-  const statusEl = _addMsg('status', 'Layla AI is thinking…');
+  const statusEl = _addMsg('status', '');
+  const stopTimer = startTimer((text) => { statusEl.textContent = text; });
 
   try {
-    const newHtml = await laylaAIEdit(_editorHtml, msg, (s) => { statusEl.textContent = s; });
+    const newHtml = await laylaAIEdit(_editorHtml, msg, () => {});
+    stopTimer();
     _editorHtml = newHtml;
     statusEl.remove();
     const frame = document.getElementById('editorFrame') as HTMLIFrameElement | null;
     if (frame) frame.srcdoc = _editorHtml;
     _addMsg('ai', '✓ Done! Your site has been updated.');
   } catch (err: unknown) {
+    stopTimer();
     statusEl.remove();
     const message = err instanceof Error ? err.message : String(err);
     // Classify the error so user knows what to do
@@ -440,18 +465,17 @@ export async function initDashboard(onSignOut: () => void): Promise<string | nul
     const val = buildInput?.value.trim() ?? '';
     if (!val) { buildInput?.focus(); return; }
 
-    setBtn('Connecting to Layla AI…', true);
+    const stopTimer = startTimer((text) => setBtn(text, true));
 
     let html: string;
     try {
-      html = await laylaAI(val, (status) => setBtn(status, true));
+      html = await laylaAI(val, () => {});
     } catch (err) {
       console.warn('Layla AI failed, using fallback generator:', err);
-      setBtn('Generating with fallback…', true);
-      await new Promise(r => setTimeout(r, 400));
       html = generateSite(val);
     }
 
+    stopTimer();
     if (buildInput) buildInput.value = '';
     setBtn('Build →', false);
 
