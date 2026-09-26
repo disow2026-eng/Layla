@@ -1,8 +1,62 @@
 // ── Layla AI ──────────────────────────────────────────────
 // Powered by OpenRouter
 
-const KEY   = import.meta.env['VITE_OPENROUTER_KEY'] as string;
-const MODEL = 'deepseek/deepseek-v3-0324:free';
+const KEY = import.meta.env['VITE_OPENROUTER_KEY'] as string;
+
+// Ordered fallback list — first available model wins
+const MODELS = [
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'qwen/qwen3.8-27b:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+];
+
+async function callModel(
+  messages: Array<{ role: string; content: string }>,
+  maxTokens: number
+): Promise<{ html: string; finishReason: string }> {
+  let lastError = '';
+  for (const model of MODELS) {
+    let res: Response;
+    try {
+      res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://disow2026-eng.github.io/Layla/',
+          'X-Title': 'Layla AI',
+        },
+        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.7 }),
+      });
+    } catch (e) {
+      lastError = `Network error: ${(e as Error).message}`;
+      continue;
+    }
+
+    if (res.status === 429) { lastError = 'Rate limit hit'; continue; }
+    if (res.status === 401) throw new Error('Invalid API key — check VITE_OPENROUTER_KEY in .env');
+    if (res.status === 402) throw new Error('OpenRouter credits exhausted.');
+
+    const data = await res.json() as {
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      error?: { message: string };
+    };
+
+    // No endpoints / invalid model — try next
+    if (data.error?.message?.includes('No endpoints') || data.error?.message?.includes('not a valid model')) {
+      lastError = data.error.message;
+      continue;
+    }
+    if (data.error) throw new Error(data.error.message);
+
+    const choice = data.choices?.[0];
+    let html = choice?.message?.content?.trim() ?? '';
+    html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+    return { html, finishReason: choice?.finish_reason ?? '' };
+  }
+  throw new Error(`All models unavailable: ${lastError}`);
+}
 
 const SYSTEM_PROMPT = `You are Layla AI — you generate COMPLETE, STUNNING, STANDALONE HTML websites with Three.js 3D scenes and real content overlaid on top. Every site must look like it took a senior designer weeks to build.
 
@@ -328,53 +382,17 @@ export async function laylaAI(
   prompt: string,
   onStatus: (msg: string) => void
 ): Promise<string> {
-  if (!KEY) throw new Error('No API key configured.');
+  if (!KEY) throw new Error('No API key configured. Add VITE_OPENROUTER_KEY to .env');
 
   onStatus('Layla AI is thinking…');
+  const { html, finishReason } = await callModel(
+    [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }],
+    10000
+  );
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://disow2026-eng.github.io/Layla/',
-      'X-Title': 'Layla AI',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user',   content: prompt },
-      ],
-      max_tokens: 8000,
-      temperature: 0.8,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text().catch(() => res.statusText);
-    throw new Error(`Layla AI error ${res.status}: ${err}`);
-  }
-
-  const data = await res.json() as {
-    choices?: Array<{ message?: { content?: string } }>;
-    error?: { message: string };
-  };
-
-  if (data.error) throw new Error(data.error.message);
-
-  let html = data.choices?.[0]?.message?.content?.trim() ?? '';
-
-  // Strip markdown code fences if model wraps output
-  html = html
-    .replace(/^```html\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/\s*```$/, '')
-    .trim();
-
-  if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html')) {
-    throw new Error('Layla AI returned invalid output — retrying with fallback.');
-  }
+  if (finishReason === 'length') throw new Error('Response cut off — using fallback.');
+  if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html'))
+    throw new Error('Invalid output from AI — using fallback.');
 
   onStatus('Rendering your site…');
   return html;
@@ -404,13 +422,9 @@ Rules:
 CRITICAL: Return ONLY the raw HTML. No markdown. No code fences. No explanation.
 Start with exactly: <!DOCTYPE html>`;
 
-// Compress HTML to reduce token usage — strip comments, collapse whitespace
+// Compress HTML before sending to save tokens
 function compressHtml(html: string): string {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\n\s*\n/g, '\n')
-    .replace(/  +/g, ' ')
-    .trim();
+  return html.replace(/<!--[\s\S]*?-->/g, '').replace(/\n\s*\n/g, '\n').replace(/  +/g, ' ').trim();
 }
 
 export async function laylaAIEdit(
@@ -418,71 +432,23 @@ export async function laylaAIEdit(
   instruction: string,
   onStatus: (msg: string) => void
 ): Promise<string> {
-  if (!KEY) throw new Error('No OpenRouter API key set. Add VITE_OPENROUTER_KEY to your .env file.');
+  if (!KEY) throw new Error('No OpenRouter API key set. Add VITE_OPENROUTER_KEY to .env');
 
   onStatus('Applying your change…');
-
-  // Compress to save tokens if HTML is large
   const htmlToSend = currentHtml.length > 6000 ? compressHtml(currentHtml) : currentHtml;
 
-  let res: Response;
-  try {
-    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://disow2026-eng.github.io/Layla/',
-        'X-Title': 'Layla AI',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: EDIT_PROMPT },
-          { role: 'user',   content: `Current HTML:\n\n${htmlToSend}\n\nInstruction: ${instruction}` },
-        ],
-        max_tokens: 12000,
-        temperature: 0.4,
-      }),
-    });
-  } catch (networkErr) {
-    throw new Error(`Network error — check your internet connection. (${(networkErr as Error).message})`);
-  }
+  const { html, finishReason } = await callModel(
+    [
+      { role: 'system', content: EDIT_PROMPT },
+      { role: 'user', content: `Current HTML:\n\n${htmlToSend}\n\nInstruction: ${instruction}` },
+    ],
+    12000
+  );
 
-  if (res.status === 429) throw new Error('Rate limit hit — wait a moment and try again.');
-  if (res.status === 401) throw new Error('Invalid API key — check VITE_OPENROUTER_KEY in .env');
-  if (res.status === 402) throw new Error('OpenRouter credits exhausted — check your account.');
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => res.statusText);
-    let msg = `API error ${res.status}`;
-    try { msg = (JSON.parse(errBody) as { error?: { message: string } }).error?.message ?? msg; } catch { /* ignore */ }
-    throw new Error(msg);
-  }
-
-  const data = await res.json() as {
-    choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-    error?: { message: string };
-  };
-
-  if (data.error) throw new Error(data.error.message);
-
-  const choice = data.choices?.[0];
-  let html = choice?.message?.content?.trim() ?? '';
-
-  // If the model hit max_tokens mid-response, the HTML will be truncated — detect and reject clearly
-  if (choice?.finish_reason === 'length') {
-    throw new Error('Response was too long and got cut off. Try a more specific instruction.');
-  }
-
-  html = html
-    .replace(/^```html\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/\s*```$/, '')
-    .trim();
-
-  if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html')) {
-    throw new Error(`AI returned unexpected output — it may have refused or misunderstood the request. Response started with: "${html.slice(0, 80)}"`);
-  }
+  if (finishReason === 'length')
+    throw new Error('Response cut off — try a more specific instruction.');
+  if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html'))
+    throw new Error(`AI returned unexpected output. Started with: "${html.slice(0, 80)}"`);
 
   onStatus('Updating preview…');
   return html;
