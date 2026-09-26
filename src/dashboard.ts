@@ -199,7 +199,7 @@ async function _sendEdit(msg: string): Promise<void> {
       statusEl.remove();
       const message = err instanceof Error ? err.message : String(err);
       let friendly = `⚠ ${message}`;
-      if (/rate limit/i.test(message)) friendly = '⏳ Rate limit — wait a few seconds and try again.';
+      if (/rate.limit/i.test(message)) friendly = '⏳ All AI servers are rate-limited right now — please wait 30 seconds and try again.';
       else if (/network/i.test(message)) friendly = '📡 Network error — check your connection and retry.';
       else if (/api key/i.test(message)) friendly = '🔑 API key issue — the OpenRouter key may be invalid.';
       else if (/cut off/i.test(message)) friendly = '✂ Response cut off — try a shorter instruction.';

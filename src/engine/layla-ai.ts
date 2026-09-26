@@ -4,13 +4,18 @@
 const KEY = import.meta.env['VITE_OPENROUTER_KEY'] as string;
 const TIMEOUT_MS = 22000; // 22s per model — skip slow ones faster
 
-// Models in priority order — skips unavailable/overloaded automatically
+// Models in priority order — skips unavailable/overloaded/rate-limited automatically
 const MODELS = [
   'qwen/qwen3.8-27b:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemma-3-27b-it:free',
   'google/gemma-4-31b-it:free',
   'google/gemma-4-26b-a4b-it:free',
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
   'nvidia/nemotron-3.5-lightning:free',
   'nvidia/nemotron-3-super-120b-a12b:free',
+  'google/gemma-3-12b-it:free',
 ];
 
 async function callModel(
@@ -18,6 +23,7 @@ async function callModel(
   maxTokens: number
 ): Promise<{ html: string; finishReason: string }> {
   let lastError = '';
+  let rateLimitCount = 0;
 
   for (const model of MODELS) {
     const controller = new AbortController();
@@ -48,7 +54,12 @@ async function callModel(
     }
     clearTimeout(timer);
 
-    if (res.status === 429) { lastError = 'Rate limited'; continue; }
+    if (res.status === 429) {
+      rateLimitCount++;
+      lastError = 'rate-limited';
+      await new Promise(r => setTimeout(r, 800)); // brief pause before next model
+      continue;
+    }
     if (res.status === 401) throw new Error('Invalid API key — check VITE_OPENROUTER_KEY in .env');
     if (res.status === 402) throw new Error('OpenRouter credits exhausted.');
 
@@ -68,6 +79,8 @@ async function callModel(
     html = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
     return { html, finishReason: choice?.finish_reason ?? '' };
   }
+  if (rateLimitCount > 0 && rateLimitCount >= MODELS.length - 2)
+    throw new Error('rate-limited');
   throw new Error(`All models unavailable or timed out: ${lastError}`);
 }
 
@@ -258,6 +271,7 @@ export async function laylaAIPatch(
   ];
 
   let lastError = '';
+  let rateLimitCount = 0;
   for (const model of MODELS) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -282,7 +296,12 @@ export async function laylaAIPatch(
     }
     clearTimeout(timer);
 
-    if (res.status === 429) { lastError = 'Rate limited'; continue; }
+    if (res.status === 429) {
+      rateLimitCount++;
+      lastError = 'rate-limited';
+      await new Promise(r => setTimeout(r, 800));
+      continue;
+    }
     if (res.status === 401) throw new Error('Invalid API key');
     if (res.status === 402) throw new Error('OpenRouter credits exhausted.');
     if (!res.body) continue;
@@ -334,6 +353,8 @@ export async function laylaAIPatch(
     return { html, method: 'patch' };
   }
 
+  if (rateLimitCount > 0 && rateLimitCount >= MODELS.length - 2)
+    throw new Error('rate-limited');
   throw new Error(`Patch failed: ${lastError}`);
 }
 
