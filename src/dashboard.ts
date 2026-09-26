@@ -203,7 +203,7 @@ async function _sendEdit(msg: string): Promise<void> {
       else if (/network/i.test(message)) friendly = '📡 Network error — check your connection and retry.';
       else if (/api key/i.test(message)) friendly = '🔑 API key issue — the OpenRouter key may be invalid.';
       else if (/cut off/i.test(message)) friendly = '✂ Response cut off — try a shorter instruction.';
-      else if (/unexpected output/i.test(message)) friendly = '🤔 Try being more specific, e.g. "change headline color to red".';
+      else if (/unexpected output/i.test(message)) friendly = `⚠ AI returned bad output — retrying may help. Detail: ${message.slice(0, 120)}`;
       _addMsg('ai', friendly);
     }
   }

@@ -317,9 +317,38 @@ function applyPatches(html: string, patches: Patch[]): { html: string; applied: 
   let result = html;
   let applied = 0;
   for (const p of patches) {
+    // Strategy 1: exact match
     if (result.includes(p.find)) {
-      // replaceAll via split/join to avoid regex escape issues
       result = result.split(p.find).join(p.replace);
+      applied++;
+      continue;
+    }
+    // Strategy 2: unescape \n \t (AI sometimes returns escape sequences instead of real chars)
+    const unescaped = p.find.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"');
+    if (result.includes(unescaped)) {
+      result = result.split(unescaped).join(p.replace);
+      applied++;
+      continue;
+    }
+    // Strategy 3: collapse whitespace — handles single vs double space differences
+    const collapseWS = (s: string) => s.replace(/[ \t]+/g, ' ').trim();
+    const normFind = collapseWS(p.find);
+    const normHtml = collapseWS(result);
+    const idx = normHtml.indexOf(normFind);
+    if (idx !== -1) {
+      // Map position back to original string: count how many original chars correspond to idx normalized chars
+      let origIdx = 0, normCount = 0;
+      for (let i = 0; i < result.length && normCount < idx; i++) {
+        if (result[i] !== ' ' || (i > 0 && result[i - 1] !== ' ')) normCount++;
+        origIdx = i + 1;
+      }
+      // Find end of match
+      let origEnd = origIdx;
+      for (let nc = 0; nc < normFind.length && origEnd < result.length;) {
+        if (result[origEnd] !== ' ' || (origEnd > 0 && result[origEnd - 1] !== ' ')) nc++;
+        origEnd++;
+      }
+      result = result.slice(0, origIdx) + p.replace + result.slice(origEnd);
       applied++;
     }
   }
@@ -460,20 +489,25 @@ export async function laylaAIEdit(
   // Fast path: Groq 70B (~5-10s vs 30-50s on free OpenRouter)
   if (GROQ_KEY) {
     try {
-      const html = await callGroq(messages, GROQ_SMART, 7000, 0.5, onLiveChars);
-      const clean = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
-      if (clean.startsWith('<!DOCTYPE') || clean.startsWith('<html')) {
+      const raw = await callGroq(messages, GROQ_SMART, 7000, 0.5, onLiveChars);
+      const stripped = raw.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+      // Strip any preamble text the model adds before <!DOCTYPE
+      const dtIdx = stripped.search(/<!doctype|<html/i);
+      if (dtIdx >= 0) {
         onStatus('Updating preview…');
-        return clean;
+        return stripped.slice(dtIdx);
       }
+      // Groq returned something invalid — fall through to OpenRouter
     } catch { /* fall through to OpenRouter */ }
   }
 
   if (!KEY) throw new Error('No API key set. Add VITE_GROQ_KEY or VITE_OPENROUTER_KEY to .env');
 
   let lastError = '';
+  const deadline = Date.now() + TOTAL_TIMEOUT_MS;
 
   for (const model of MODELS) {
+    if (Date.now() > deadline) break;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
