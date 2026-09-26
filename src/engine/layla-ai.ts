@@ -5,8 +5,18 @@
 const KEY      = import.meta.env['VITE_OPENROUTER_KEY'] as string;
 const GROQ_KEY = import.meta.env['VITE_GROQ_KEY'] as string | undefined;
 
-const GROQ_FAST  = 'llama-3.1-8b-instant';    // patches + config
-const GROQ_SMART = 'llama-3.3-70b-versatile'; // full HTML edits
+// Groq models — each has its own rate limit bucket, try all before giving up
+const GROQ_MODELS_FAST = [
+  'llama-3.1-8b-instant',
+  'gemma2-9b-it',
+  'llama-3.3-70b-versatile',
+];
+const GROQ_MODELS_SMART = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'gemma2-9b-it',
+  'mixtral-8x7b-32768',
+];
 
 // OpenRouter fallback models
 const MODELS = [
@@ -20,40 +30,67 @@ const OR_TIMEOUT  = 20000; // 20s per OpenRouter model
 const OR_DEADLINE = 35000; // 35s total across all models
 
 // ── Simple Groq fetch (no streaming — avoids all SSE bugs) ─
+// Accepts a model array — tries each until one succeeds (each has its own rate limit bucket)
 
 async function groqFetch(
   messages: Array<{ role: string; content: string }>,
-  model: string,
+  models: string[],
   maxTokens: number,
   temperature = 0.2
 ): Promise<string> {
   if (!GROQ_KEY) throw new Error('No Groq key');
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
+  let lastError = '';
 
-  let res: Response;
-  try {
-    res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${GROQ_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature }),
-    });
-  } finally {
+  for (const model of models) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+
+    let res: Response;
+    try {
+      res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${GROQ_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature }),
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      lastError = (e as Error).message;
+      continue;
+    }
     clearTimeout(timer);
+
+    if (res.status === 429) {
+      lastError = 'rate-limited';
+      await new Promise(r => setTimeout(r, 300));
+      continue;
+    }
+    if (res.status === 401) throw new Error('Invalid Groq API key');
+
+    const data = await res.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      error?: { message: string };
+    };
+
+    if (data.error?.message) {
+      if (/rate.limit|quota|capacity/i.test(data.error.message)) {
+        lastError = data.error.message;
+        await new Promise(r => setTimeout(r, 300));
+        continue;
+      }
+      throw new Error(data.error.message);
+    }
+
+    const content = data.choices?.[0]?.message?.content?.trim() ?? '';
+    if (content) return content;
+    lastError = 'empty response';
   }
 
-  const data = await res.json() as {
-    choices?: Array<{ message?: { content?: string } }>;
-    error?: { message: string };
-  };
-
-  if (data.error?.message) throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content?.trim() ?? '';
+  throw new Error(lastError.includes('rate') ? 'rate-limited' : `All Groq models failed: ${lastError}`);
 }
 
 // ── OpenRouter fetch (non-streaming) ──────────────────────
@@ -173,7 +210,7 @@ export async function laylaAIConfig(
 
   let raw: string;
   try {
-    raw = GROQ_KEY ? await groqFetch(messages, GROQ_FAST, 600) : await orFetch(messages, 600);
+    raw = GROQ_KEY ? await groqFetch(messages, GROQ_MODELS_FAST, 600) : await orFetch(messages, 600);
   } catch {
     throw new Error('AI config failed');
   }
@@ -189,7 +226,7 @@ export async function laylaAI(
 ): Promise<string> {
   onStatus('Layla AI is thinking…');
   const messages = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }];
-  const raw = GROQ_KEY ? await groqFetch(messages, GROQ_SMART, 8000, 0.7) : await orFetch(messages, 8000, 0.7);
+  const raw = GROQ_KEY ? await groqFetch(messages, GROQ_MODELS_SMART, 4000, 0.7) : await orFetch(messages, 4000, 0.7);
   const idx = raw.search(/<!doctype|<html/i);
   if (idx < 0) throw new Error('Invalid output from AI');
   return raw.slice(idx);
@@ -273,7 +310,7 @@ export async function laylaAIPatch(
   // Try Groq first
   if (GROQ_KEY) {
     try {
-      const raw = await groqFetch(messages, GROQ_FAST, 500);
+      const raw = await groqFetch(messages, GROQ_MODELS_FAST, 500);
       const result = tryPatches(raw);
       if (result) return { html: result, method: 'patch' };
     } catch { /* fall through */ }
@@ -305,7 +342,7 @@ export async function laylaAIEdit(
   // Try Groq first
   if (GROQ_KEY) {
     try {
-      const raw = await groqFetch(messages, GROQ_SMART, 6000, 0.5);
+      const raw = await groqFetch(messages, GROQ_MODELS_SMART, 4000, 0.5);
       const html = extractHtml(raw);
       if (html) { onStatus('Updating preview…'); return html; }
     } catch (e) {
@@ -314,7 +351,7 @@ export async function laylaAIEdit(
   }
 
   // OpenRouter fallback
-  const raw = await orFetch(messages, 6000, 0.5);
+  const raw = await orFetch(messages, 4000, 0.5);
   const html = extractHtml(raw);
   if (html) { onStatus('Updating preview…'); return html; }
 
