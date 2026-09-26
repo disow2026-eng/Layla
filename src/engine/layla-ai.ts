@@ -51,18 +51,18 @@ async function callGroq(
   const decoder = new TextDecoder();
   let result = '';
   try {
-    while (true) {
+    outer: while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       for (const line of decoder.decode(value, { stream: true }).split('\n')) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
-        if (data === '[DONE]') break;
-        try {
-          const delta = (JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> })
-            .choices?.[0]?.delta?.content;
-          if (delta) { result += delta; if (onChunk) onChunk(result.length); }
-        } catch { /* skip malformed SSE line */ }
+        if (data === '[DONE]') break outer;
+        let parsed: { choices?: Array<{ delta?: { content?: string } }>; error?: { message: string } } | null = null;
+        try { parsed = JSON.parse(data); } catch { continue; }
+        if (parsed?.error?.message) throw new Error(parsed.error.message); // surface real errors
+        const delta = parsed?.choices?.[0]?.delta?.content;
+        if (delta) { result += delta; if (onChunk) onChunk(result.length); }
       }
     }
   } finally {
@@ -423,33 +423,32 @@ export async function laylaAIPatch(
     const decoder = new TextDecoder();
     let raw = '';
     let modelError = '';
+    let fatalPatchError = '';
     try {
-      while (true) {
+      outer: while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         for (const line of decoder.decode(value, { stream: true }).split('\n')) {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data) as {
-              choices?: Array<{ delta?: { content?: string } }>;
-              error?: { message: string };
-            };
-            if (parsed.error?.message) {
-              if (/No endpoints|not a valid model|unavailable|overloaded|upstream/i.test(parsed.error.message)) {
-                modelError = parsed.error.message; break;
-              }
-              throw new Error(parsed.error.message);
+          if (data === '[DONE]') break outer;
+          let parsed: { choices?: Array<{ delta?: { content?: string } }>; error?: { message: string } } | null = null;
+          try { parsed = JSON.parse(data); } catch { continue; }
+          if (parsed?.error?.message) {
+            if (/No endpoints|not a valid model|unavailable|overloaded|upstream/i.test(parsed.error.message)) {
+              modelError = parsed.error.message;
+            } else {
+              fatalPatchError = parsed.error.message;
             }
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) { raw += delta; if (onLiveChars) onLiveChars(raw.length); }
-          } catch { /* skip */ }
+            break outer;
+          }
+          const delta = parsed?.choices?.[0]?.delta?.content;
+          if (delta) { raw += delta; if (onLiveChars) onLiveChars(raw.length); }
         }
-        if (modelError) break;
       }
     } finally { reader.releaseLock(); }
 
+    if (fatalPatchError) throw new Error(fatalPatchError);
     if (modelError) { lastError = modelError; continue; }
 
     // Parse JSON patches
@@ -545,58 +544,47 @@ export async function laylaAIEdit(
     let finishReason = '';
     let modelError = '';
 
+    let fatalError = '';
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
+        for (const line of chunk.split('\n')) {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
           if (data === '[DONE]') break;
 
-          try {
-            const parsed = JSON.parse(data) as {
-              choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
-              error?: { message: string };
-            };
+          // Parse JSON — skip malformed lines only
+          let parsed: { choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>; error?: { message: string } } | null = null;
+          try { parsed = JSON.parse(data); } catch { continue; }
 
-            if (parsed.error?.message) {
-              if (/No endpoints|not a valid model|unavailable|overloaded|upstream/i.test(parsed.error.message)) {
-                modelError = parsed.error.message;
-                break;
-              }
-              throw new Error(parsed.error.message);
+          if (parsed?.error?.message) {
+            if (/No endpoints|not a valid model|unavailable|overloaded|upstream/i.test(parsed.error.message)) {
+              modelError = parsed.error.message;
+            } else {
+              fatalError = parsed.error.message; // real error — don't swallow it
             }
-
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              accumulated += delta;
-              if (onLiveChars) onLiveChars(accumulated.length);
-            }
-            const fr = parsed.choices?.[0]?.finish_reason;
-            if (fr) finishReason = fr;
-          } catch (parseErr) {
-            // Skip malformed SSE lines
+            break;
           }
+
+          const delta = parsed?.choices?.[0]?.delta?.content;
+          if (delta) { accumulated += delta; if (onLiveChars) onLiveChars(accumulated.length); }
+          const fr = parsed?.choices?.[0]?.finish_reason;
+          if (fr) finishReason = fr;
         }
 
-        if (modelError) break;
+        if (modelError || fatalError) break;
       }
     } finally {
       reader.releaseLock();
     }
 
-    if (modelError) {
-      lastError = modelError;
-      continue;
-    }
+    if (fatalError) throw new Error(fatalError); // propagate real API errors
+    if (modelError) { lastError = modelError; continue; }
 
     let html = accumulated.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
-    // Strip any BOM or leading whitespace/text before the doctype
     const doctypeIdx = html.search(/<!doctype|<html/i);
     if (doctypeIdx > 0) html = html.slice(doctypeIdx);
 
