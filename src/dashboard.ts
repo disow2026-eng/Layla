@@ -154,11 +154,23 @@ function _addMsg(role: 'user' | 'ai' | 'status', text: string): HTMLElement {
 async function _sendEdit(msg: string): Promise<void> {
   if (!msg.trim()) return;
   _addMsg('user', msg);
-  const statusEl = _addMsg('status', '');
-  const stopTimer = startTimer((text) => { statusEl.textContent = text; });
+  const statusEl = _addMsg('status', 'Writing your changes…');
+
+  // Live char counter — shows user that AI is actively streaming
+  let liveChars = 0;
+  const stopTimer = startTimer((timerText) => {
+    statusEl.textContent = liveChars > 0
+      ? `Writing… ${liveChars.toLocaleString()} chars (${timerText.match(/\d+s/)?.[0] ?? ''})`
+      : timerText;
+  });
 
   try {
-    const newHtml = await laylaAIEdit(_editorHtml, msg, () => {});
+    const newHtml = await laylaAIEdit(
+      _editorHtml,
+      msg,
+      () => {},
+      (chars) => { liveChars = chars; }
+    );
     stopTimer();
     _editorHtml = newHtml;
     statusEl.remove();
@@ -169,7 +181,6 @@ async function _sendEdit(msg: string): Promise<void> {
     stopTimer();
     statusEl.remove();
     const message = err instanceof Error ? err.message : String(err);
-    // Classify the error so user knows what to do
     let friendly = `⚠ ${message}`;
     if (/rate limit/i.test(message)) friendly = '⏳ Rate limit — wait a few seconds and try again.';
     else if (/network/i.test(message)) friendly = '📡 Network error — check your connection and retry.';
@@ -465,28 +476,38 @@ export async function initDashboard(onSignOut: () => void): Promise<string | nul
     const val = buildInput?.value.trim() ?? '';
     if (!val) { buildInput?.focus(); return; }
 
-    const stopTimer = startTimer((text) => setBtn(text, true));
-
-    // Fast path: ask AI for a tiny JSON config (~5-10s), then build HTML locally
-    let html: string;
-    try {
-      const config = await laylaAIConfig(val, () => {});
-      stopTimer();
-      setBtn('Rendering…', true);
-      html = generateSite(val, config);
-    } catch (err) {
-      console.warn('AI config failed, using fallback generator:', err);
-      stopTimer();
-      setBtn('Rendering…', true);
-      html = generateSite(val);
-    }
-
+    // Step 1: Show instant preview using keyword-based generator (< 50ms)
+    setBtn('Building…', true);
+    const instantHtml = generateSite(val);
     if (buildInput) buildInput.value = '';
+    const project = addProject(userId, val, instantHtml);
+    refreshDashboard(userId);
     setBtn('Build →', false);
 
-    const project = addProject(userId, val, html);
-    refreshDashboard(userId);
+    // Open editor immediately with the instant site
     showPreview(project);
+
+    // Step 2: Enhance with AI config in the background
+    // The editor is now open — we'll update it when AI returns
+    setTimeout(async () => {
+      try {
+        const statusEl = _addMsg('status', '');
+        const stopTimer = startTimer((text) => { statusEl.textContent = `✦ AI enhancing… ${text}`; });
+        const config = await laylaAIConfig(val, () => {});
+        stopTimer();
+        const enhancedHtml = generateSite(val, config);
+        statusEl.remove();
+        // Update iframe and stored project HTML
+        _editorHtml = enhancedHtml;
+        updateProjectHtml(userId, project.id, enhancedHtml);
+        const frame = document.getElementById('editorFrame') as HTMLIFrameElement | null;
+        if (frame) frame.srcdoc = enhancedHtml;
+        _addMsg('ai', '✦ AI has enhanced your site with custom content!');
+        refreshDashboard(userId);
+      } catch {
+        // AI enhancement failed silently — instant version is still good
+      }
+    }, 100);
   };
 
   buildBtn?.addEventListener('click', () => { handleBuild(); });

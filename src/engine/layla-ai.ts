@@ -205,29 +205,122 @@ function compressHtml(html: string): string {
   return html.replace(/<!--[\s\S]*?-->/g, '').replace(/\n\s*\n/g, '\n').replace(/  +/g, ' ').trim();
 }
 
+// ── Streaming edit (live progress) ───────────────────────
+
 export async function laylaAIEdit(
   currentHtml: string,
   instruction: string,
-  onStatus: (msg: string) => void
+  onStatus: (msg: string) => void,
+  onLiveChars?: (chars: number) => void
 ): Promise<string> {
   if (!KEY) throw new Error('No OpenRouter API key set. Add VITE_OPENROUTER_KEY to .env');
 
   onStatus('Applying your change…');
   const htmlToSend = currentHtml.length > 6000 ? compressHtml(currentHtml) : currentHtml;
+  const messages = [
+    { role: 'system', content: EDIT_PROMPT },
+    { role: 'user', content: `Current HTML:\n\n${htmlToSend}\n\nInstruction: ${instruction}` },
+  ];
 
-  const { html, finishReason } = await callModel(
-    [
-      { role: 'system', content: EDIT_PROMPT },
-      { role: 'user', content: `Current HTML:\n\n${htmlToSend}\n\nInstruction: ${instruction}` },
-    ],
-    12000
-  );
+  let lastError = '';
 
-  if (finishReason === 'length')
-    throw new Error('Response cut off — try a more specific instruction.');
-  if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html'))
-    throw new Error(`AI returned unexpected output. Started with: "${html.slice(0, 80)}"`);
+  for (const model of MODELS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  onStatus('Updating preview…');
-  return html;
+    let res: Response;
+    try {
+      res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://disow2026-eng.github.io/Layla/',
+          'X-Title': 'Layla AI',
+        },
+        body: JSON.stringify({ model, messages, max_tokens: 12000, temperature: 0.7, stream: true }),
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      const msg = (e as Error).message;
+      lastError = msg.includes('abort') || msg.includes('signal') ? `${model} timed out` : `Network: ${msg}`;
+      continue;
+    }
+    clearTimeout(timer);
+
+    if (res.status === 429) { lastError = 'Rate limited'; continue; }
+    if (res.status === 401) throw new Error('Invalid API key — check VITE_OPENROUTER_KEY in .env');
+    if (res.status === 402) throw new Error('OpenRouter credits exhausted.');
+
+    // Check for model-level errors in the first chunk
+    if (!res.body) throw new Error('No response body from API');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = '';
+    let finishReason = '';
+    let modelError = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+
+          try {
+            const parsed = JSON.parse(data) as {
+              choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
+              error?: { message: string };
+            };
+
+            if (parsed.error?.message) {
+              if (/No endpoints|not a valid model|unavailable|overloaded|upstream/i.test(parsed.error.message)) {
+                modelError = parsed.error.message;
+                break;
+              }
+              throw new Error(parsed.error.message);
+            }
+
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              accumulated += delta;
+              if (onLiveChars) onLiveChars(accumulated.length);
+            }
+            const fr = parsed.choices?.[0]?.finish_reason;
+            if (fr) finishReason = fr;
+          } catch (parseErr) {
+            // Skip malformed SSE lines
+          }
+        }
+
+        if (modelError) break;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (modelError) {
+      lastError = modelError;
+      continue;
+    }
+
+    let html = accumulated.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+
+    if (finishReason === 'length') throw new Error('Response cut off — try a more specific instruction.');
+    if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html'))
+      throw new Error(`AI returned unexpected output. Started with: "${html.slice(0, 80)}"`);
+
+    onStatus('Updating preview…');
+    return html;
+  }
+
+  throw new Error(`All models unavailable or timed out: ${lastError}`);
 }
