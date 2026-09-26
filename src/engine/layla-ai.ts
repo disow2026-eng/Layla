@@ -1,8 +1,71 @@
 // ── Layla AI ──────────────────────────────────────────────
-// Powered by OpenRouter
+// Primary: Groq (fast LPU inference, free tier)
+// Fallback: OpenRouter free models
 
-const KEY = import.meta.env['VITE_OPENROUTER_KEY'] as string;
-const TIMEOUT_MS = 22000; // 22s per model — skip slow ones faster
+const KEY      = import.meta.env['VITE_OPENROUTER_KEY'] as string;
+const GROQ_KEY = import.meta.env['VITE_GROQ_KEY'] as string | undefined;
+const TIMEOUT_MS = 22000; // 22s per OpenRouter model attempt
+
+// Groq models — LPU hardware, 10-20x faster than free OpenRouter
+const GROQ_FAST  = 'llama-3.1-8b-instant';    // patches + config (~1-3s)
+const GROQ_SMART = 'llama-3.3-70b-versatile'; // full HTML edits (~5-10s)
+const GROQ_TIMEOUT = 15000; // 15s — Groq is fast, bail early if something's wrong
+
+// ── Groq streaming helper ─────────────────────────────────
+
+async function callGroq(
+  messages: Array<{ role: string; content: string }>,
+  model: string,
+  maxTokens: number,
+  temperature = 0.2,
+  onChunk?: (chars: number) => void
+): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GROQ_TIMEOUT);
+
+  let res: Response;
+  try {
+    res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${GROQ_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature, stream: true }),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (res!.status === 429) throw new Error('rate-limited');
+  if (res!.status === 401) throw new Error('Invalid Groq API key');
+  if (!res!.ok) throw new Error(`Groq ${res!.status}`);
+  if (!res!.body) throw new Error('No body');
+
+  const reader = res!.body.getReader();
+  const decoder = new TextDecoder();
+  let result = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of decoder.decode(value, { stream: true }).split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') break;
+        try {
+          const delta = (JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> })
+            .choices?.[0]?.delta?.content;
+          if (delta) { result += delta; if (onChunk) onChunk(result.length); }
+        } catch { /* skip malformed */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return result;
+}
 
 // Models in priority order — skips unavailable/overloaded/rate-limited automatically
 const MODELS = [
@@ -151,15 +214,19 @@ export async function laylaAIConfig(
   prompt: string,
   onStatus: (msg: string) => void
 ): Promise<AIConfig> {
-  if (!KEY) throw new Error('No API key');
   onStatus('Layla AI is reading your prompt…');
+  const messages = [{ role: 'system', content: CONFIG_PROMPT }, { role: 'user', content: prompt }];
 
-  const { html: raw } = await callModel(
-    [{ role: 'system', content: CONFIG_PROMPT }, { role: 'user', content: prompt }],
-    600  // JSON only — tiny response
-  );
+  let raw: string;
+  if (GROQ_KEY) {
+    // Fast path: Groq (~1-2s)
+    raw = await callGroq(messages, GROQ_FAST, 600);
+  } else {
+    if (!KEY) throw new Error('No API key');
+    const { html } = await callModel(messages, 600);
+    raw = html;
+  }
 
-  // Extract JSON even if model wraps it in backticks or text
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('No JSON in response');
   return JSON.parse(match[0]) as AIConfig;
@@ -262,13 +329,24 @@ export async function laylaAIPatch(
   instruction: string,
   onLiveChars?: (chars: number) => void
 ): Promise<{ html: string; method: 'patch' | 'fallback' }> {
-  if (!KEY) throw new Error('No API key');
-
   const htmlToSend = compressHtml(currentHtml);
   const messages = [
     { role: 'system', content: PATCH_PROMPT },
     { role: 'user', content: `HTML:\n${htmlToSend}\n\nInstruction: ${instruction}` },
   ];
+
+  // Fast path: Groq (~1-3s)
+  if (GROQ_KEY) {
+    try {
+      const raw = await callGroq(messages, GROQ_FAST, 500, 0.2, onLiveChars);
+      const match = raw.match(/\[[\s\S]*\]/);
+      if (match) {
+        const patches = JSON.parse(match[0]) as Patch[];
+        const { html, applied } = applyPatches(currentHtml, patches);
+        if (applied > 0) return { html, method: 'patch' };
+      }
+    } catch { /* fall through to OpenRouter */ }
+  }
 
   let lastError = '';
   let rateLimitCount = 0;
@@ -366,15 +444,26 @@ export async function laylaAIEdit(
   onStatus: (msg: string) => void,
   onLiveChars?: (chars: number) => void
 ): Promise<string> {
-  if (!KEY) throw new Error('No OpenRouter API key set. Add VITE_OPENROUTER_KEY to .env');
-
   onStatus('Applying your change…');
-  // Compress aggressively — the AI needs structure, not whitespace
   const htmlToSend = compressHtml(currentHtml);
   const messages = [
     { role: 'system', content: EDIT_PROMPT },
     { role: 'user', content: `Current HTML:\n\n${htmlToSend}\n\nInstruction: ${instruction}` },
   ];
+
+  // Fast path: Groq 70B (~5-10s vs 30-50s on free OpenRouter)
+  if (GROQ_KEY) {
+    try {
+      const html = await callGroq(messages, GROQ_SMART, 7000, 0.5, onLiveChars);
+      const clean = html.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+      if (clean.startsWith('<!DOCTYPE') || clean.startsWith('<html')) {
+        onStatus('Updating preview…');
+        return clean;
+      }
+    } catch { /* fall through to OpenRouter */ }
+  }
+
+  if (!KEY) throw new Error('No API key set. Add VITE_GROQ_KEY or VITE_OPENROUTER_KEY to .env');
 
   let lastError = '';
 
