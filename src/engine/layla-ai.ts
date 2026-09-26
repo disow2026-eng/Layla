@@ -2,7 +2,7 @@
 // Powered by OpenRouter
 
 const KEY = import.meta.env['VITE_OPENROUTER_KEY'] as string;
-const TIMEOUT_MS = 40000; // 40s per model attempt
+const TIMEOUT_MS = 22000; // 22s per model — skip slow ones faster
 
 // Models in priority order — skips unavailable/overloaded automatically
 const MODELS = [
@@ -202,7 +202,12 @@ Start with exactly: <!DOCTYPE html>`;
 
 // Compress HTML before sending to save tokens
 function compressHtml(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, '').replace(/\n\s*\n/g, '\n').replace(/  +/g, ' ').trim();
+  return html
+    .replace(/<!--[\s\S]*?-->/g, '')          // strip comments
+    .replace(/\n\s*\n/g, '\n')                // collapse blank lines
+    .replace(/  +/g, ' ')                     // collapse spaces
+    .replace(/new Float32Array\([^)]{30,}\)/g, 'new Float32Array([/*…*/])')  // strip large arrays
+    .trim();
 }
 
 // ── Streaming edit (live progress) ───────────────────────
@@ -216,7 +221,8 @@ export async function laylaAIEdit(
   if (!KEY) throw new Error('No OpenRouter API key set. Add VITE_OPENROUTER_KEY to .env');
 
   onStatus('Applying your change…');
-  const htmlToSend = currentHtml.length > 6000 ? compressHtml(currentHtml) : currentHtml;
+  // Compress aggressively — the AI needs structure, not whitespace
+  const htmlToSend = compressHtml(currentHtml);
   const messages = [
     { role: 'system', content: EDIT_PROMPT },
     { role: 'user', content: `Current HTML:\n\n${htmlToSend}\n\nInstruction: ${instruction}` },
@@ -239,7 +245,7 @@ export async function laylaAIEdit(
           'HTTP-Referer': 'https://disow2026-eng.github.io/Layla/',
           'X-Title': 'Layla AI',
         },
-        body: JSON.stringify({ model, messages, max_tokens: 12000, temperature: 0.7, stream: true }),
+        body: JSON.stringify({ model, messages, max_tokens: 7000, temperature: 0.5, stream: true }),
       });
     } catch (e) {
       clearTimeout(timer);
