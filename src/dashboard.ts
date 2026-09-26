@@ -1,6 +1,6 @@
 import { getUser, signOut } from './lib/supabase';
 import { generateSite } from './engine/generator';
-import { laylaAIConfig, laylaAIEdit } from './engine/layla-ai';
+import { laylaAIConfig, laylaAIPatch, laylaAIEdit } from './engine/layla-ai';
 import { makeZip } from './lib/zip';
 
 export interface Project {
@@ -154,21 +154,21 @@ function _addMsg(role: 'user' | 'ai' | 'status', text: string): HTMLElement {
 async function _sendEdit(msg: string): Promise<void> {
   if (!msg.trim()) return;
   _addMsg('user', msg);
-  const statusEl = _addMsg('status', 'Writing your changes…');
+  const statusEl = _addMsg('status', 'Analyzing your request…');
 
-  // Live char counter — shows user that AI is actively streaming
   let liveChars = 0;
   const stopTimer = startTimer((timerText) => {
+    const s = timerText.match(/\d+s/)?.[0] ?? '';
     statusEl.textContent = liveChars > 0
-      ? `Writing… ${liveChars.toLocaleString()} chars (${timerText.match(/\d+s/)?.[0] ?? ''})`
+      ? `Writing changes… ${liveChars.toLocaleString()} chars (${s})`
       : timerText;
   });
 
   try {
-    const newHtml = await laylaAIEdit(
+    // Fast path: patch system (~3-6s) — AI returns tiny find/replace pairs
+    const { html: newHtml, method } = await laylaAIPatch(
       _editorHtml,
       msg,
-      () => {},
       (chars) => { liveChars = chars; }
     );
     stopTimer();
@@ -176,18 +176,36 @@ async function _sendEdit(msg: string): Promise<void> {
     statusEl.remove();
     const frame = document.getElementById('editorFrame') as HTMLIFrameElement | null;
     if (frame) frame.srcdoc = _editorHtml;
-    _addMsg('ai', '✓ Done! Your site has been updated.');
-  } catch (err: unknown) {
-    stopTimer();
-    statusEl.remove();
-    const message = err instanceof Error ? err.message : String(err);
-    let friendly = `⚠ ${message}`;
-    if (/rate limit/i.test(message)) friendly = '⏳ Rate limit — wait a few seconds and try again.';
-    else if (/network/i.test(message)) friendly = '📡 Network error — check your connection and retry.';
-    else if (/api key/i.test(message)) friendly = '🔑 API key issue — the OpenRouter key may be invalid.';
-    else if (/cut off|too long/i.test(message)) friendly = '✂ Response cut off — try a more specific instruction like "change headline to X" instead of a big change.';
-    else if (/unexpected output|misunderstood/i.test(message)) friendly = '🤔 AI misunderstood — try being more specific, e.g. "change the headline color to red" or "make cubes blue".';
-    _addMsg('ai', friendly);
+    _addMsg('ai', method === 'patch' ? '✓ Done! Changes applied instantly.' : '✓ Done! Your site has been updated.');
+  } catch (patchErr) {
+    // Fallback: full HTML rewrite if patch fails
+    statusEl.textContent = 'Rewriting site…';
+    liveChars = 0;
+    try {
+      const newHtml = await laylaAIEdit(
+        _editorHtml,
+        msg,
+        () => {},
+        (chars) => { liveChars = chars; }
+      );
+      stopTimer();
+      _editorHtml = newHtml;
+      statusEl.remove();
+      const frame = document.getElementById('editorFrame') as HTMLIFrameElement | null;
+      if (frame) frame.srcdoc = _editorHtml;
+      _addMsg('ai', '✓ Done! Your site has been updated.');
+    } catch (err: unknown) {
+      stopTimer();
+      statusEl.remove();
+      const message = err instanceof Error ? err.message : String(err);
+      let friendly = `⚠ ${message}`;
+      if (/rate limit/i.test(message)) friendly = '⏳ Rate limit — wait a few seconds and try again.';
+      else if (/network/i.test(message)) friendly = '📡 Network error — check your connection and retry.';
+      else if (/api key/i.test(message)) friendly = '🔑 API key issue — the OpenRouter key may be invalid.';
+      else if (/cut off/i.test(message)) friendly = '✂ Response cut off — try a shorter instruction.';
+      else if (/unexpected output/i.test(message)) friendly = '🤔 Try being more specific, e.g. "change headline color to red".';
+      _addMsg('ai', friendly);
+    }
   }
 }
 

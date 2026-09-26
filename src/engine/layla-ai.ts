@@ -210,6 +210,133 @@ function compressHtml(html: string): string {
     .trim();
 }
 
+// ── Fast patch system ─────────────────────────────────────
+// Asks AI for find→replace pairs (~200 tokens, ~3-6s) instead of full HTML rewrite (~7000 tokens, ~30-50s)
+
+const PATCH_PROMPT = `You receive an HTML file and ONE user instruction.
+Return ONLY a JSON array of find→replace operations.
+
+Rules:
+- "find" must be an EXACT string copied verbatim from the HTML (including quotes/semicolons)
+- "replace" is what to substitute in its place
+- Use the minimum patches needed — usually 1 to 4 operations
+- For color changes: find the hex color value e.g. "#6c63ff" and replace with new hex
+- For text changes: find the exact text string and replace it
+- For 3D colors: find the COLORS array e.g. ["#6c63ff","#9d97ff",...] and replace with new colors
+- For font-size changes: find the exact CSS value e.g. "font-size:clamp(52px,8vw,100px)" and replace
+- For geometry: find the THREE.IcosahedronGeometry (or whatever) constructor and replace
+
+Return raw JSON only — no markdown, no explanation, no code fences.
+Example output: [{"find":"color:#6c63ff","replace":"color:#ff3300"},{"find":"Build the\\nFuture","replace":"Hello\\nWorld"}]`;
+
+interface Patch { find: string; replace: string; }
+
+function applyPatches(html: string, patches: Patch[]): { html: string; applied: number } {
+  let result = html;
+  let applied = 0;
+  for (const p of patches) {
+    if (result.includes(p.find)) {
+      // replaceAll via split/join to avoid regex escape issues
+      result = result.split(p.find).join(p.replace);
+      applied++;
+    }
+  }
+  return { html: result, applied };
+}
+
+export async function laylaAIPatch(
+  currentHtml: string,
+  instruction: string,
+  onLiveChars?: (chars: number) => void
+): Promise<{ html: string; method: 'patch' | 'fallback' }> {
+  if (!KEY) throw new Error('No API key');
+
+  const htmlToSend = compressHtml(currentHtml);
+  const messages = [
+    { role: 'system', content: PATCH_PROMPT },
+    { role: 'user', content: `HTML:\n${htmlToSend}\n\nInstruction: ${instruction}` },
+  ];
+
+  let lastError = '';
+  for (const model of MODELS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://disow2026-eng.github.io/Layla/',
+          'X-Title': 'Layla AI',
+        },
+        body: JSON.stringify({ model, messages, max_tokens: 500, temperature: 0.2, stream: true }),
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      const msg = (e as Error).message;
+      lastError = msg.includes('abort') || msg.includes('signal') ? `${model} timed out` : `Network: ${msg}`;
+      continue;
+    }
+    clearTimeout(timer);
+
+    if (res.status === 429) { lastError = 'Rate limited'; continue; }
+    if (res.status === 401) throw new Error('Invalid API key');
+    if (res.status === 402) throw new Error('OpenRouter credits exhausted.');
+    if (!res.body) continue;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let raw = '';
+    let modelError = '';
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        for (const line of decoder.decode(value, { stream: true }).split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data) as {
+              choices?: Array<{ delta?: { content?: string } }>;
+              error?: { message: string };
+            };
+            if (parsed.error?.message) {
+              if (/No endpoints|not a valid model|unavailable|overloaded|upstream/i.test(parsed.error.message)) {
+                modelError = parsed.error.message; break;
+              }
+              throw new Error(parsed.error.message);
+            }
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) { raw += delta; if (onLiveChars) onLiveChars(raw.length); }
+          } catch { /* skip */ }
+        }
+        if (modelError) break;
+      }
+    } finally { reader.releaseLock(); }
+
+    if (modelError) { lastError = modelError; continue; }
+
+    // Parse JSON patches
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) { lastError = 'No JSON array in response'; continue; }
+
+    let patches: Patch[];
+    try { patches = JSON.parse(match[0]) as Patch[]; }
+    catch { lastError = 'Invalid JSON'; continue; }
+
+    const { html, applied } = applyPatches(currentHtml, patches);
+    if (applied === 0) { lastError = 'No patches matched HTML'; continue; }
+
+    return { html, method: 'patch' };
+  }
+
+  throw new Error(`Patch failed: ${lastError}`);
+}
+
 // ── Streaming edit (live progress) ───────────────────────
 
 export async function laylaAIEdit(
