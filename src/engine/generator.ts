@@ -1,5 +1,7 @@
-// ── Layla Site Generator (fallback) ──────────────────────
-// Used when AI is unavailable — still generates beautiful sites
+// ── Layla Site Generator ─────────────────────────────────
+// Builds beautiful sites from a prompt + optional AI config
+
+import type { AIConfig } from './layla-ai';
 
 interface Theme {
   bg: string;
@@ -272,7 +274,23 @@ function getContent(prompt: string): Content {
 
 // ── Geometry + scene code ─────────────────────────────────
 
-function getSceneCode(p: string, theme: Theme, layout: Layout): string {
+// Maps AI config geometry names → keyword hints for scene code
+const GEO_HINT: Record<string, string> = {
+  icosahedron: 'portfolio creative',
+  torusknot:   'product saas tech',
+  torus:       'luxury gold elegant jewelry',
+  sphere:      'space galaxy',
+  box:         'neon cyber',
+  octahedron:  'minimal clean',
+  dodecahedron:'nature organic',
+  mixed:       '',
+};
+
+function getSceneCode(p: string, theme: Theme, layout: Layout, geoOverride?: string): string {
+  // Use geometry override keyword if provided
+  if (geoOverride && GEO_HINT[geoOverride] !== undefined) {
+    p = GEO_HINT[geoOverride] || p;
+  }
   const isLight = theme.bg === '#f4f4f8';
   const camZ = layout === 'minimal-object' ? 10 : layout === 'hero-split' ? 18 : 22;
 
@@ -704,13 +722,29 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 48px;display:fl
 
 // ── Main HTML builder ────────────────────────────────────
 
-export function generateSite(prompt: string): string {
+export function generateSite(prompt: string, aiConfig?: AIConfig): string {
   const p = prompt.toLowerCase();
-  const theme   = getTheme(p);
+
+  // Theme: use AI config theme keyword or fallback to keyword detection
+  let theme = getTheme(aiConfig?.theme ?? p);
+  // Override accent color if AI provided one
+  if (aiConfig?.accent && /^#[0-9a-f]{6}$/i.test(aiConfig.accent)) {
+    theme = { ...theme, accent: aiConfig.accent };
+  }
+
+  // Content: start with keyword-based then override with AI values
   const content = getContent(prompt);
-  const layout  = getLayout(p);
+  if (aiConfig?.brand)    content.brand    = aiConfig.brand;
+  if (aiConfig?.headline) content.headline = aiConfig.headline;
+  if (aiConfig?.sub)      content.sub      = aiConfig.sub;
+  if (aiConfig?.cta)      content.cta      = aiConfig.cta;
+  if (aiConfig?.nav && aiConfig.nav.length >= 2) content.nav = aiConfig.nav;
+  if (aiConfig?.features && aiConfig.features.length > 0) content.features = aiConfig.features;
+
+  // Layout: use AI config layout or keyword detection
+  const layout = (aiConfig?.layout as Layout | undefined) ?? getLayout(p);
   const isLight = theme.bg === '#f4f4f8';
-  const sceneCode = getSceneCode(p, theme, layout);
+  const sceneCode = getSceneCode(p, theme, layout, aiConfig?.geometry);
 
   let bodyContent: string;
   switch (layout) {

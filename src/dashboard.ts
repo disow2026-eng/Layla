@@ -1,6 +1,6 @@
 import { getUser, signOut } from './lib/supabase';
 import { generateSite } from './engine/generator';
-import { laylaAI, laylaAIEdit } from './engine/layla-ai';
+import { laylaAIConfig, laylaAIEdit } from './engine/layla-ai';
 import { makeZip } from './lib/zip';
 
 export interface Project {
@@ -467,15 +467,20 @@ export async function initDashboard(onSignOut: () => void): Promise<string | nul
 
     const stopTimer = startTimer((text) => setBtn(text, true));
 
+    // Fast path: ask AI for a tiny JSON config (~5-10s), then build HTML locally
     let html: string;
     try {
-      html = await laylaAI(val, () => {});
+      const config = await laylaAIConfig(val, () => {});
+      stopTimer();
+      setBtn('Rendering…', true);
+      html = generateSite(val, config);
     } catch (err) {
-      console.warn('Layla AI failed, using fallback generator:', err);
+      console.warn('AI config failed, using fallback generator:', err);
+      stopTimer();
+      setBtn('Rendering…', true);
       html = generateSite(val);
     }
 
-    stopTimer();
     if (buildInput) buildInput.value = '';
     setBtn('Build →', false);
 

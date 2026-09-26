@@ -98,7 +98,61 @@ MeshStandardMaterial: metalness 0.6, roughness 0.2. Add 3 PointLights with theme
 OUTPUT: ONLY raw HTML starting with <!DOCTYPE html> — no markdown, no code fences, no explanation.
 Start your response with exactly: <!DOCTYPE html>`;
 
-// ── Main call ─────────────────────────────────────────────
+// ── Fast JSON config (used as primary path) ───────────────
+// Asks AI for a tiny JSON object (~200 tokens) instead of full HTML (~3000 tokens)
+// The generator then builds the HTML from this config — 10x faster
+
+const CONFIG_PROMPT = `Read the user's prompt and respond with ONLY a JSON object — no markdown, no explanation, no code fences. Just raw JSON.
+
+{
+  "brand": "SHORT BRAND NAME IN CAPS (2-3 words max)",
+  "headline": "Punchy 2-5 word headline (use \\n for line break)",
+  "sub": "One compelling sentence describing this site.",
+  "cta": "Button text",
+  "nav": ["Link1", "Link2", "Link3"],
+  "theme": "space|cyber|luxury|minimal|ocean|fire|nature|pink|purple|default",
+  "layout": "hero-center|hero-split|minimal-object|grid-feature",
+  "geometry": "icosahedron|torusknot|torus|sphere|box|octahedron|dodecahedron|mixed",
+  "accent": "#hexcolor",
+  "features": [
+    {"icon": "emoji", "title": "Feature title", "desc": "One sentence."},
+    {"icon": "emoji", "title": "Feature title", "desc": "One sentence."},
+    {"icon": "emoji", "title": "Feature title", "desc": "One sentence."}
+  ]
+}`;
+
+export interface AIConfig {
+  brand?: string;
+  headline?: string;
+  sub?: string;
+  cta?: string;
+  nav?: string[];
+  theme?: string;
+  layout?: string;
+  geometry?: string;
+  accent?: string;
+  features?: Array<{ icon: string; title: string; desc: string }>;
+}
+
+export async function laylaAIConfig(
+  prompt: string,
+  onStatus: (msg: string) => void
+): Promise<AIConfig> {
+  if (!KEY) throw new Error('No API key');
+  onStatus('Layla AI is reading your prompt…');
+
+  const { html: raw } = await callModel(
+    [{ role: 'system', content: CONFIG_PROMPT }, { role: 'user', content: prompt }],
+    600  // JSON only — tiny response
+  );
+
+  // Extract JSON even if model wraps it in backticks or text
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON in response');
+  return JSON.parse(match[0]) as AIConfig;
+}
+
+// ── Full HTML generation (fallback for edit mode) ─────────
 
 export async function laylaAI(
   prompt: string,
@@ -115,7 +169,6 @@ export async function laylaAI(
   if (finishReason === 'length') throw new Error('Response cut off — using fallback.');
   if (!html.startsWith('<!DOCTYPE') && !html.startsWith('<html'))
     throw new Error('Invalid output from AI — using fallback.');
-  // Ensure Three.js is actually in the output — if not, the site will be a blank page
   if (!html.includes('three') && !html.includes('THREE'))
     throw new Error('AI did not include Three.js — using fallback.');
 
